@@ -2,6 +2,7 @@
  * API Client - Axios 인스턴스
  */
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api';
 
@@ -52,6 +53,21 @@ client.interceptors.response.use(
       }
     }
 
+    // 글로벌 에러 토스트 (401 제외 - 이미 처리됨)
+    if (!originalRequest._retry) {
+      if (!error.response) {
+        // 네트워크 오류 (서버 연결 불가)
+        toast.error('서버에 연결할 수 없습니다. 네트워크를 확인해주세요.', { id: 'network-error' });
+      } else if (error.response.status >= 500) {
+        // 서버 내부 오류
+        const msg = error.response.data?.detail || '서버 오류가 발생했습니다';
+        toast.error(msg, { id: 'server-error' });
+      } else if (error.response.status === 503) {
+        // Ollama/서비스 비가용
+        toast.error('AI 서비스가 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.', { id: 'service-unavailable' });
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -61,6 +77,11 @@ export const authAPI = {
   login: (username, password) =>
     client.post('/auth/login', { username, password }),
   me: () => client.get('/auth/me'),
+  changePassword: (currentPassword, newPassword) =>
+    client.patch('/auth/password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
 };
 
 // ---- Users API ----

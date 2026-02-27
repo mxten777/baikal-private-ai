@@ -1,9 +1,10 @@
 /**
  * Sidebar - 프리미엄 사이드바 네비게이션
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import PasswordChangeModal from './PasswordChangeModal';
 import {
   HiOutlineChatBubbleLeftRight,
   HiOutlineDocumentText,
@@ -11,6 +12,7 @@ import {
   HiOutlineUsers,
   HiOutlineFolderOpen,
   HiOutlineArrowRightOnRectangle,
+  HiOutlineKey,
 } from 'react-icons/hi2';
 
 function NavItem({ to, icon: Icon, label }) {
@@ -54,6 +56,7 @@ function NavItem({ to, icon: Icon, label }) {
 export default function Sidebar({ onClose }) {
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const [pwModalOpen, setPwModalOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -136,6 +139,13 @@ export default function Sidebar({ onClose }) {
             </p>
           </div>
           <button
+            onClick={() => setPwModalOpen(true)}
+            className="p-1.5 text-gray-300 hover:text-baikal-600 hover:bg-baikal-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+            title="비밀번호 변경"
+          >
+            <HiOutlineKey className="w-4 h-4" />
+          </button>
+          <button
             onClick={handleLogout}
             className="p-1.5 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
             title="로그아웃"
@@ -144,6 +154,9 @@ export default function Sidebar({ onClose }) {
           </button>
         </div>
       </div>
+
+      {/* 비밀번호 변경 모달 */}
+      <PasswordChangeModal isOpen={pwModalOpen} onClose={() => setPwModalOpen(false)} />
     </aside>
   );
 }

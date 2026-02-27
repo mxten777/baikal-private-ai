@@ -4,9 +4,12 @@ Auth API - 로그인, 토큰 갱신
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
-from app.schemas.user import LoginRequest, TokenResponse, TokenRefreshRequest, UserResponse
+from app.schemas.user import (
+    LoginRequest, TokenResponse, TokenRefreshRequest,
+    UserResponse, PasswordChangeRequest, PasswordChangeResponse,
+)
 from app.services.auth_service import authenticate_user, create_tokens
-from app.core.security import decode_token
+from app.core.security import decode_token, verify_password, hash_password
 from app.core.deps import get_current_user
 from app.models.user import User
 from sqlalchemy import select
@@ -55,3 +58,31 @@ async def refresh_token(request: TokenRefreshRequest, db: AsyncSession = Depends
 async def get_me(current_user: User = Depends(get_current_user)):
     """현재 사용자 정보"""
     return current_user
+
+
+@router.patch("/password", response_model=PasswordChangeResponse)
+async def change_password(
+    request: PasswordChangeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """비밀번호 변경"""
+    # 현재 비밀번호 확인
+    if not verify_password(request.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="현재 비밀번호가 올바르지 않습니다",
+        )
+
+    # 새 비밀번호 유효성 검사
+    if len(request.new_password) < 4:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="새 비밀번호는 4자 이상이어야 합니다",
+        )
+
+    # 비밀번호 업데이트
+    current_user.password_hash = hash_password(request.new_password)
+    await db.commit()
+
+    return {"message": "비밀번호가 성공적으로 변경되었습니다"}
