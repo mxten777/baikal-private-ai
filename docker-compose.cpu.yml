@@ -1,0 +1,90 @@
+# GPU 없는 환경용 docker-compose (CPU only)
+version: "3.8"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: baikal-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-baikal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-baikal_secret_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-baikal_ai}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-baikal}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - baikal-net
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: baikal-ollama
+    restart: always
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - baikal-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: baikal-backend
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - upload_data:/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    networks:
+      - baikal-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: baikal-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - baikal-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: baikal-nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - baikal-net
+
+volumes:
+  postgres_data:
+  ollama_data:
+  upload_data:
+
+networks:
+  baikal-net:
+    driver: bridge
