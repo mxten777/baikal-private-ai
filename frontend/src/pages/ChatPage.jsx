@@ -1,5 +1,6 @@
 /**
- * ChatPage - 프리미엄 AI 채팅
+ * ChatPage - 전문 RAG 시스템 UI
+ * 중앙 집중형 + 다크 세션 패널
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { chatAPI } from '../api/client';
@@ -14,6 +15,8 @@ import {
   HiOutlineLightBulb,
   HiOutlineSparkles,
   HiOutlineChevronLeft,
+  HiOutlineMagnifyingGlass,
+  HiOutlineArrowPath,
 } from 'react-icons/hi2';
 
 export default function ChatPage() {
@@ -23,6 +26,7 @@ export default function ChatPage() {
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
   const [showSessions, setShowSessions] = useState(false);
 
   useEffect(() => { loadSessions(); }, []);
@@ -111,35 +115,43 @@ export default function ChatPage() {
     } finally { setLoading(false); }
   };
 
+  const handleQuickQuestion = (q) => {
+    setQuestion(q);
+    inputRef.current?.focus();
+  };
+
   return (
     <div className="flex h-full relative">
       {/* 모바일 세션 오버레이 */}
       {showSessions && (
-        <div className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm md:hidden" onClick={() => setShowSessions(false)} />
+        <div className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm md:hidden" onClick={() => setShowSessions(false)} />
       )}
 
-      {/* ── 세션 목록 사이드바 ── */}
+      {/* ── 세션 패널 ── */}
       <div className={`
-        fixed inset-y-0 left-0 z-40 w-[280px] bg-white border-r border-gray-100/80 flex flex-col transition-transform duration-300 ease-in-out
-        md:relative md:w-[260px] md:translate-x-0 md:z-auto
+        fixed inset-y-0 left-0 z-40 w-[260px] bg-[#13131d] border-r border-white/[0.04] flex flex-col transition-transform duration-300 ease-in-out
+        md:relative md:w-[240px] md:translate-x-0 md:z-auto
         ${showSessions ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        {/* 모바일 헤더 */}
         <div className="flex items-center justify-between p-3 pb-0 md:hidden">
-          <p className="text-sm font-bold text-gray-700 px-1">대화 목록</p>
-          <button onClick={() => setShowSessions(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg">
-            <HiOutlineChevronLeft className="w-5 h-5" />
+          <p className="text-xs font-semibold text-gray-400 px-1">대화 목록</p>
+          <button onClick={() => setShowSessions(false)} className="p-1.5 text-gray-500 hover:text-gray-300 rounded-lg">
+            <HiOutlineChevronLeft className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-3 pb-2">
-          <button onClick={() => { createSession(); setShowSessions(false); }} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-baikal-600 to-baikal-700 hover:from-baikal-700 hover:to-baikal-800 shadow-sm hover:shadow-md transition-all duration-200">
-            <HiOutlinePlusCircle className="w-4.5 h-4.5" />
+
+        <div className="p-3">
+          <button
+            onClick={() => { createSession(); setShowSessions(false); }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-medium text-gray-400 border border-white/[0.06] hover:bg-white/[0.04] hover:border-white/[0.1] transition-all duration-200"
+          >
+            <HiOutlinePlusCircle className="w-4 h-4" />
             새 대화
           </button>
         </div>
 
-        <div className="px-3 py-2">
-          <p className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.1em]">대화 목록</p>
+        <div className="px-4 py-1.5">
+          <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">최근 대화</p>
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
@@ -148,138 +160,140 @@ export default function ChatPage() {
             return (
               <div
                 key={session.id}
-                className={`group flex items-center gap-2.5 px-3 py-2.5 cursor-pointer rounded-xl transition-all duration-200 ${
-                  isActive ? 'bg-baikal-50/80 shadow-sm' : 'hover:bg-gray-50/80'
+                className={`group flex items-center gap-2 px-2.5 py-2 cursor-pointer rounded-lg transition-all duration-150 ${
+                  isActive ? 'bg-white/[0.06] text-gray-200' : 'text-gray-500 hover:bg-white/[0.03] hover:text-gray-300'
                 }`}
                 onClick={() => { setActiveSession(session.id); setShowSessions(false); }}
               >
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-                  isActive ? 'bg-baikal-600 text-white' : 'bg-gray-100 text-gray-400'
-                }`}>
-                  <HiOutlineChatBubbleLeftRight className="w-3.5 h-3.5" />
-                </div>
-                <p className={`text-[13px] truncate flex-1 ${isActive ? 'font-semibold text-gray-800' : 'text-gray-500'}`}>
-                  {session.title}
-                </p>
+                <HiOutlineChatBubbleLeftRight className="w-3.5 h-3.5 flex-shrink-0 opacity-60" />
+                <p className="text-[12px] truncate flex-1">{session.title}</p>
                 <button
                   onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
-                  className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-red-50"
+                  className="p-1 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all rounded"
                 >
-                  <HiOutlineTrash className="w-3.5 h-3.5" />
+                  <HiOutlineTrash className="w-3 h-3" />
                 </button>
               </div>
             );
           })}
           {sessions.length === 0 && (
-            <div className="px-4 py-12 text-center">
-              <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center mx-auto mb-3">
-                <HiOutlineChatBubbleLeftRight className="w-5 h-5 text-gray-300" />
-              </div>
-              <p className="text-xs text-gray-400 font-medium">대화가 없습니다</p>
-              <p className="text-[10px] text-gray-300 mt-0.5">새 대화를 시작해보세요</p>
+            <div className="px-3 py-10 text-center">
+              <HiOutlineChatBubbleLeftRight className="w-6 h-6 text-gray-700 mx-auto mb-2" />
+              <p className="text-[11px] text-gray-600">대화가 없습니다</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── 채팅 영역 ── */}
-      <div className="flex-1 flex flex-col bg-gray-50/50 min-w-0">
-        {/* 모바일 채팅 헤더 */}
-        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100 bg-white md:hidden">
-          <button onClick={() => setShowSessions(true)} className="p-1.5 -ml-1 text-gray-500 hover:text-baikal-600 rounded-lg hover:bg-baikal-50 transition-colors">
-            <HiOutlineChatBubbleLeftRight className="w-5 h-5" />
-          </button>
-          <p className="text-sm font-semibold text-gray-700 truncate">
-            {sessions.find(s => s.id === activeSession)?.title || '새 대화'}
-          </p>
+      {/* ── 메인 채팅 영역 ── */}
+      <div className="flex-1 flex flex-col min-w-0 bg-[#0f0f17]">
+        {/* 상단 바 */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.04] bg-[#0f0f17]/80 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowSessions(true)} className="p-1.5 text-gray-500 hover:text-gray-300 rounded-lg hover:bg-white/[0.05] transition-colors md:hidden">
+              <HiOutlineChatBubbleLeftRight className="w-4.5 h-4.5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+              <span className="text-[12px] font-medium text-gray-500">
+                {sessions.find(s => s.id === activeSession)?.title || 'BAIKAL AI'}
+              </span>
+            </div>
+          </div>
+          <span className="text-[10px] text-gray-600 font-medium hidden sm:block">RAG Engine v1.0</span>
         </div>
-        {/* 메시지 */}
+
+        {/* 메시지 영역 */}
         <div className="flex-1 overflow-y-auto">
           {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full animate-fade-in">
-              <div className="text-center max-w-lg px-4 sm:px-0">
-                {/* 로고 영역 */}
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-baikal-50 via-purple-50 to-fuchsia-50 mb-7 relative">
-                  <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-baikal-200/30 via-transparent to-purple-200/30 animate-glow-pulse" />
-                  <HiOutlineSparkles className="w-9 h-9 text-baikal-600 relative z-10" />
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center w-full max-w-[580px] px-6 animate-fade-in">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-baikal-500 to-purple-600 mb-6 shadow-lg shadow-baikal-500/20">
+                  <HiOutlineSparkles className="w-7 h-7 text-white" />
                 </div>
-
-                <h2 className="text-xl sm:text-[28px] font-black text-gray-900 tracking-tight mb-1.5">
-                  무엇이든 물어보세요
+                <h2 className="text-2xl sm:text-[28px] font-extrabold text-gray-100 tracking-tight mb-2">
+                  무엇을 알고 싶으세요?
                 </h2>
-                <p className="text-sm text-gray-400 font-medium mb-10">
-                  업로드된 문서를 기반으로 AI가 정확한 답변을 제공합니다
+                <p className="text-[14px] text-gray-500 mb-8">
+                  업로드된 문서를 기반으로 정확한 답변을 제공합니다
                 </p>
-
-                {/* 기능 팁 카드 */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-8">
                   {[
-                    { icon: HiOutlineDocumentText, title: '문서 질문', desc: '업로드한 문서 내용으로 질문하세요', gradient: 'from-baikal-500 to-blue-600' },
-                    { icon: HiOutlineLightBulb, title: '요약 요청', desc: '"이 문서를 요약해줘" 형식을 사용하세요', gradient: 'from-amber-500 to-orange-500' },
-                    { icon: HiOutlineSparkles, title: '구체적 질문', desc: '구체적인 질문일수록 정확한 답변을 받아요', gradient: 'from-purple-500 to-fuchsia-500' },
-                  ].map((tip, idx) => (
-                    <div key={idx} className="group p-4 rounded-2xl bg-white border border-gray-100 hover:border-gray-200 hover:shadow-soft transition-all duration-200 cursor-default">
-                      <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${tip.gradient} flex items-center justify-center mb-3 shadow-sm group-hover:shadow-md transition-shadow`}>
-                        <tip.icon className="w-4.5 h-4.5 text-white" />
-                      </div>
-                      <p className="text-[13px] font-bold text-gray-800 mb-1">{tip.title}</p>
-                      <p className="text-[11px] text-gray-400 leading-relaxed">{tip.desc}</p>
-                    </div>
+                    { icon: HiOutlineDocumentText, text: '연차휴가 규정을 알려주세요', color: 'text-blue-500' },
+                    { icon: HiOutlineLightBulb, text: '이 문서를 요약해주세요', color: 'text-amber-500' },
+                    { icon: HiOutlineMagnifyingGlass, text: '복리후생 제도는 어떻게 되나요?', color: 'text-emerald-500' },
+                    { icon: HiOutlineSparkles, text: '2025년 총 매출 현황은?', color: 'text-purple-500' },
+                  ].map((item, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleQuickQuestion(item.text)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.03] text-left transition-all duration-200 group"
+                    >
+                      <item.icon className={`w-4 h-4 ${item.color} flex-shrink-0`} />
+                      <span className="text-[13px] text-gray-500 group-hover:text-gray-300 transition-colors">{item.text}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {['PDF', 'DOCX', 'XLSX', '시맨틱 검색', '실시간 스트리밍'].map((tag) => (
+                    <span key={tag} className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-white/[0.04] text-gray-500">{tag}</span>
                   ))}
                 </div>
               </div>
             </div>
           ) : (
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 pt-5">
               {messages.map((msg, idx) => (
                 <ChatMessage key={msg.id || idx} message={msg} />
               ))}
               {loading && (
-                <div className="px-6 py-5">
+                <div className="px-5 py-6">
                   <div className="flex gap-3 items-start">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-baikal-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-black text-[10px]">AI</span>
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-baikal-600 to-purple-600 flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-[9px]">AI</span>
                     </div>
-                    <div className="flex items-center gap-3 pt-1.5">
-                      <div className="flex gap-1">
-                        {[0, 1, 2].map((i) => (
-                          <div key={i} className="w-2 h-2 bg-baikal-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
-                        ))}
+                    <div className="pt-0.5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <HiOutlineArrowPath className="w-3.5 h-3.5 text-baikal-500 animate-spin" />
+                        <span className="text-[12px] text-gray-400 font-medium">분석 및 답변 생성 중...</span>
                       </div>
-                      <p className="text-sm text-gray-400 font-medium animate-pulse-soft">답변 생성 중...</p>
+                      <div className="space-y-2">
+                        <div className="h-3 bg-white/[0.06] rounded-full w-72 animate-pulse" />
+                        <div className="h-3 bg-white/[0.06] rounded-full w-56 animate-pulse" style={{ animationDelay: '150ms' }} />
+                        <div className="h-3 bg-white/[0.06] rounded-full w-64 animate-pulse" style={{ animationDelay: '300ms' }} />
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} className="h-4" />
             </div>
           )}
         </div>
 
         {/* ── 입력 영역 ── */}
-        <div className="border-t border-gray-100 bg-white p-3 sm:p-4">
-          <form onSubmit={handleAsk} className="max-w-4xl mx-auto">
-            <div className="flex gap-2.5 items-end">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="문서 내용에 대해 질문하세요..."
-                  className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-baikal-300 focus:ring-4 focus:ring-baikal-500/10 transition-all duration-200"
-                  disabled={loading}
-                />
-              </div>
+        <div className="border-t border-white/[0.04] bg-[#0f0f17] px-4 py-3 sm:px-6 sm:py-4">
+          <form onSubmit={handleAsk} className="max-w-3xl mx-auto">
+            <div className="relative flex items-center">
+              <input
+                ref={inputRef}
+                type="text"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="질문을 입력하세요..."
+                className="w-full pl-4 pr-12 py-3 bg-white/[0.04] border border-white/[0.06] rounded-xl text-[14px] text-gray-200 placeholder:text-gray-600 focus:outline-none focus:bg-white/[0.06] focus:border-baikal-500/40 focus:ring-2 focus:ring-baikal-500/10 transition-all duration-200"
+                disabled={loading}
+              />
               <button
                 type="submit"
                 disabled={loading || !question.trim()}
-                className="p-3.5 rounded-2xl bg-gradient-to-r from-baikal-600 to-baikal-700 text-white hover:from-baikal-700 hover:to-baikal-800 shadow-sm hover:shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+                className="absolute right-1.5 p-2 rounded-lg bg-baikal-600 text-white hover:bg-baikal-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
               >
-                <HiOutlinePaperAirplane className="w-5 h-5" />
+                <HiOutlinePaperAirplane className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-center text-[10px] text-gray-300 mt-2.5 font-medium">
-              AI 답변은 문서 기반이며, 정확하지 않을 수 있습니다
+            <p className="text-center text-[10px] text-gray-600 mt-2 font-medium">
+              BAIKAL AI · 문서 기반 RAG 답변 · 정확하지 않을 수 있습니다
             </p>
           </form>
         </div>

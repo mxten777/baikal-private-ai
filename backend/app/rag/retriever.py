@@ -24,14 +24,15 @@ async def retrieve_relevant_chunks(
     embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
 
     # pgvector cosine distance 검색
+    # CAST() 함수로 변환하여 asyncpg의 ::cast 파싱 문제를 회피
     search_query = sql_text("""
         SELECT dc.id, dc.content, dc.document_id, dc.chunk_index,
                d.filename,
-               dc.embedding <=> :embedding::vector AS distance
+               dc.embedding <=> CAST(:embedding AS vector) AS distance
         FROM document_chunks dc
         JOIN documents d ON d.id = dc.document_id
         WHERE d.status = 'completed'
-        ORDER BY dc.embedding <=> :embedding::vector
+        ORDER BY dc.embedding <=> CAST(:embedding AS vector)
         LIMIT :top_k
     """)
 

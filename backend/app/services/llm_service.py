@@ -63,6 +63,11 @@ async def call_ollama_chat(prompt: str = "", system_prompt: str = "", messages: 
             "model": settings.LLM_MODEL,
             "messages": messages,
             "stream": False,
+            "options": {
+                "num_ctx": 4096,
+                "num_predict": 1024,
+                "temperature": 0.3,
+            },
         },
         timeout=300.0,
     )
@@ -88,6 +93,11 @@ async def call_ollama_chat_stream(prompt: str = "", system_prompt: str = "", mes
                     "model": settings.LLM_MODEL,
                     "messages": messages,
                     "stream": True,
+                    "options": {
+                        "num_ctx": 4096,
+                        "num_predict": 1024,
+                        "temperature": 0.3,
+                    },
                 },
             ) as response:
                 response.raise_for_status()

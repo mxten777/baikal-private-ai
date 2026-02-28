@@ -2,9 +2,9 @@
 
 폐쇄망 설치형 문서검색·답변 AI 플랫폼
 
-> **Last Updated**: 2026-02-27  
-> **Version**: 1.0.0-beta  
-> **Status**: MVP 완료 + 프리미엄 UI + 모바일 반응형
+> **Last Updated**: 2026-02-28  
+> **Version**: 1.1.0-beta  
+> **Status**: MVP 완료 + 통합 다크 테마 UI + 모바일 반응형
 
 ---
 
@@ -20,8 +20,9 @@
 8. [DB 테이블 설계](#db-테이블-설계)
 9. [API 목록](#api-목록)
 10. [RAG 파이프라인](#rag-파이프라인)
-11. [폐쇄망 설치 방법](#폐쇄망-설치-방법)
-12. [향후 보완 과제](#향후-보완-과제)
+11. [로컬 시연 가이드](#로컬-시연-가이드)
+12. [폐쇄망 설치 방법](#폐쇄망-설치-방법)
+13. [향후 보완 과제](#향후-보완-과제)
 
 ---
 
@@ -33,8 +34,9 @@
 - **RAG 파이프라인**: 문서 업로드 → 청킹 → 벡터화 → 유사도 검색 → LLM 답변
 - **실시간 스트리밍**: SSE 기반 토큰 단위 실시간 AI 답변
 - **다중 사용자**: JWT 인증, 관리자/일반 사용자 역할 분리
-- **프리미엄 UI**: 글래스모피즘, 그래디언트, 마이크로 애니메이션 적용
+- **통합 다크 테마 UI**: Linear/Vercel 스타일 프리미엄 다크 디자인, 그래디언트 액센트, 마이크로 애니메이션
 - **모바일 반응형**: 햄버거 메뉴, 슬라이드 사이드바, 적응형 테이블
+- **비밀번호 변경**: 사용자 본인 비밀번호 변경 모달 지원
 
 ---
 
@@ -59,7 +61,7 @@
 │                               ┌──────────────┐                │
 │                               │    Ollama     │                │
 │                               │    :11434     │                │
-│                               │  - llama3     │                │
+│                               │  - qwen2.5:7b │                │
 │                               │  - bge-m3     │                │
 │                               └──────────────┘                │
 └─────────────────────────────────────────────────────────────────┘
@@ -74,8 +76,8 @@
 | **Frontend** | React + Tailwind CSS | 18.3.1 / 3.4.13 |
 | **UI 라이브러리** | react-icons (Heroicons v2), react-hot-toast, react-dropzone, react-markdown | - |
 | **Backend** | FastAPI (Python) | 0.115.0 |
-| **DB** | PostgreSQL + pgvector | 16.x / 0.3.5 |
-| **AI/LLM** | Ollama – llama3 | 0.17.0 |
+| **DB** | PostgreSQL + pgvector | 16.x / 0.8.2 |
+| **AI/LLM** | Ollama – qwen2.5:7b | 0.17.0 |
 | **Embedding** | Ollama – bge-m3 (1024차원) | - |
 | **인증** | JWT (python-jose + bcrypt) | - |
 | **배포** | Docker Compose | - |
@@ -89,7 +91,7 @@
 | 항목 | 상태 | 설명 |
 |------|------|------|
 | PostgreSQL + pgvector | ✅ 완료 | 16.x 로컬 설치, pgvector 0.8.2 확장 |
-| Ollama 설치 | ✅ 완료 | llama3 (4.7GB) + bge-m3 (1.2GB) 모델 |
+| Ollama 설치 | ✅ 완료 | qwen2.5:7b (4.7GB) + bge-m3 (1.2GB) 모델 |
 | FastAPI 백엔드 | ✅ 완료 | 비동기 SQLAlchemy, 자동 테이블 생성 |
 | React 프론트엔드 | ✅ 완료 | CRA + Tailwind CSS + Router v6 |
 | Docker Compose | ✅ 완료 | CPU/GPU 분리 설정 |
@@ -106,7 +108,7 @@
 | 텍스트 청킹 | ✅ 완료 | 500자 단위, 50자 오버랩 |
 | 벡터 임베딩 | ✅ 완료 | bge-m3 모델 (1024차원) |
 | pgvector 저장/검색 | ✅ 완료 | 코사인 유사도 Top-5 검색 |
-| AI 질의응답 (RAG) | ✅ 완료 | 컨텍스트 주입 + llama3 응답 |
+| AI 질의응답 (RAG) | ✅ 완료 | 컨텍스트 주입 + qwen2.5:7b 응답 |
 | SSE 스트리밍 | ✅ 완료 | 실시간 토큰 단위 응답 |
 | 채팅 세션 관리 | ✅ 완료 | 세션별 대화 기록 저장 |
 | 문서 검색 | ✅ 완료 | 벡터 기반 의미 검색 |
@@ -118,12 +120,13 @@
 | 디자인 시스템 | ✅ 완료 | baikal 컬러 팔레트 (50~950), surface 컬러, accent 컬러 |
 | 커스텀 CSS | ✅ 완료 | 380행 index.css – 글래스모피즘, 그래디언트, shimmer |
 | 애니메이션 | ✅ 완료 | 14개 커스텀 애니메이션 (fade-in, slide-up, glow 등) |
-| 로그인 페이지 | ✅ 완료 | 좌측 브랜딩 + 우측 폼, 글래스 효과 |
+| 로그인 페이지 | ✅ 완료 | 좌측 브랜딩 + 우측 폼, 다크 테마 |
 | 채팅 페이지 | ✅ 완료 | 세션 사이드바, AI/사용자 아바타, 실시간 타이핑 인디케이터 |
 | 문서 관리 | ✅ 완료 | 통계 카드, 상태 뱃지, 드래그 앤 드롭 업로드 |
 | 검색 페이지 | ✅ 완료 | 유사도 점수 표시, 카드형 결과 |
 | 사이드바 내비게이션 | ✅ 완료 | 그래디언트 아이콘 박스, 액티브 액센트 바 |
 | 관리자 페이지 | ✅ 완료 | 사용자/문서 관리, 통계 대시보드 |
+| 비밀번호 변경 모달 | ✅ 완료 | 다크 테마 모달, 아이콘 토글 + 유효성 검사 |
 
 ### Phase 4: 모바일 반응형 ✅
 
@@ -140,6 +143,18 @@
 | AdminDocumentsPage – 4열→2열 그리드 | ✅ 완료 | `sm` (640px) |
 | LoginPage – 분할 레이아웃 | ✅ 완료 | `lg` (1024px) |
 
+### Phase 5: 통합 다크 테마 ✅
+
+| 항목 | 상태 | 설명 |
+|------|------|------|
+| 본문 영역 다크 변환 | ✅ 완료 | `#0f0f17` 배경, `white/[0.03~0.06]` 카드/보더 |
+| 사이드바 통합 | ✅ 완료 | `#13131d` 배경, 사이드바↔본문 색상 통일감 |
+| 로그인 페이지 | ✅ 완료 | 좌측 브랜딩 + 우측 다크 폼 |
+| 채팅/검색/문서 페이지 | ✅ 완료 | 테이블, 카드, 뱃지, 입력필드 다크 변환 |
+| 관리자 페이지 | ✅ 완료 | UsersPage, AdminDocumentsPage 다크 테마 |
+| 업로드/모달 컴포넌트 | ✅ 완료 | DocumentUpload, PasswordChangeModal 다크 |
+| CSS 기반 스타일 | ✅ 완료 | shimmer-dark, 스크롤바, prose 다크 변환 |
+
 ---
 
 ## UI/UX 구현 상세
@@ -147,10 +162,20 @@
 ### 디자인 시스템
 
 ```
-컬러 팔레트:
+테마: 통합 다크 (Linear/Vercel 스타일)
+
+컨러 팔레트:
   Primary :  baikal-600 (#4f46e5, Indigo 계열)
-  Surface :  #fafbfc → #f4f6f8
-  Accent  :  purple-600, fuchsia-500
+  Main BG :  #0f0f17 (본문 배경)
+  Sidebar :  #13131d (사이드바 배경)
+  Surface :  white/[0.03] (카드), white/[0.06] (보더)
+  Accent  :  baikal-500/600, purple-600
+
+텍스트 계층:
+  Heading :  gray-100 (제목)
+  Body    :  gray-200~300 (본문)
+  Muted   :  gray-500 (보조 텍스트)
+  Disabled:  gray-600
 
 타이포그래피:
   Font    :  Inter (Google Fonts)
@@ -158,10 +183,10 @@
   Label   :  text-[10px] uppercase tracking-[0.1em]
 
 컴포넌트:
-  Card    :  rounded-2xl, border-gray-100, hover:shadow-soft
-  Button  :  rounded-xl~2xl, gradient, shadow-sm→md transition
-  Input   :  rounded-xl, bg-gray-50 → focus:bg-white + ring
-  Badge   :  rounded-lg, 상태별 색상 코딩 (emerald/amber/red/blue)
+  Card    :  bg-white/[0.03], border-white/[0.06], rounded-xl
+  Button  :  rounded-xl, bg-baikal-600, shadow transition
+  Input   :  bg-white/[0.03], border-white/[0.06] → focus:border-baikal-500/40
+  Badge   :  bg-*/500/15, text-*-400 (다크 배지 스타일)
   Avatar  :  rounded-xl, gradient 배경, 이니셜 표시
 ```
 
@@ -197,7 +222,7 @@
 $env:PATH += ";C:\Program Files\PostgreSQL\16\bin;$env:LOCALAPPDATA\Programs\Ollama"
 
 # 2. Ollama 모델 준비
-ollama pull llama3
+ollama pull qwen2.5:7b
 ollama pull bge-m3
 
 # 3. DB 준비 (최초 1회)
@@ -216,6 +241,11 @@ cd frontend
 npm install
 npm start
 # → http://localhost:3000 (기본 관리자: admin / admin1234)
+
+# 6. 데모 문서 생성 (선택, 새 터미널)
+cd backend
+python ../scripts/create_demo_docs.py
+# → 3건의 샘플 문서 자동 업로드 + 벡터화
 ```
 
 ### Docker 배포
@@ -308,6 +338,8 @@ baikal-private-ai/
             ├── Sidebar.jsx
             ├── ChatMessage.jsx
             ├── DocumentUpload.jsx
+            ├── PasswordChangeModal.jsx
+            ├── ErrorBoundary.jsx
             └── ProtectedRoute.jsx
 ```
 
@@ -435,11 +467,43 @@ baikal-private-ai/
 [프롬프트 생성] ── 시스템 프롬프트 + 컨텍스트 + 질문
     │
     ▼
-[LLM 답변]    ─── Ollama llama3/mistral
+[LLM 답변]    ─── Ollama qwen2.5:7b
     │
     ▼
 [응답 반환]   ─── 답변 + 참고 문서 목록
 ```
+
+---
+
+## 로컬 시연 가이드
+
+### 사전 준비 체크리스트
+
+```powershell
+# 서비스 상태 확인
+ollama list                          # qwen2.5:7b, bge-m3 설치 확인
+Invoke-RestMethod http://localhost:8000/api/health   # 백엔드 헬스체크
+curl http://localhost:3000            # 프론트엔드 응답 확인
+```
+
+### 시연 시나리오 (15분)
+
+| 단계 | 시간 | 작업 | 설명 |
+|------|------|------|------|
+| 1 | 1분 | **로그인** | `admin / admin1234` → 다크 테마 로그인 화면 시연 |
+| 2 | 2분 | **문서 업로드** | 문서관리 페이지에서 PDF/DOCX 파일 드래그&드롭 → 자동 분석 완료 |
+| 3 | 5분 | **AI 질문응답** | 채팅 페이지에서 문서 기반 질문 → 실시간 스트리밍 답변 + 참고문서 표시 |
+| 4 | 2분 | **문서 검색** | 검색 페이지에서 키워드 입력 → 벡터 유사도 검색 결과 |
+| 5 | 2분 | **사용자 관리** | 관리자 페이지에서 사용자 생성/권한 변경/비활성화 |
+| 6 | 2분 | **모바일 반응형** | 브라우저 창 줄이기 → 햄버거 메뉴, 슬라이드 사이드바, 적응형 테이블 |
+| 7 | 1분 | **마무리** | 폐쇄망 설치 가능, 외부 API 의존 제로 강조 |
+
+### 시연 포인트
+
+- **다크 테마**: 본문과 사이드바가 통일된 다크 테마로 프리미엄감 강조
+- **실시간 스트리밍**: 토큰 단위 응답이 화면에 타이핑되는 효과
+- **참고문서 표시**: AI 답변 아래 출처 문서 링크 표시
+- **폐쇄망 운영**: Ollama 로컬 실행 → 외부 통신 없음 강조
 
 ## 폐쇄망 설치 방법
 
@@ -477,9 +541,9 @@ docker-compose up -d          # 실행
 
 | # | 과제 | 설명 | 분류 |
 |---|------|------|------|
-| 1 | **다국어 LLM 모델 교체** | llama3는 한국어 성능이 제한적. `EEVE-Korean-10.8B`, `Qwen2.5` 등 한국어 특화 모델로 교체 필요 | AI |
+| 1 | **~~다국어 LLM 모델 교체~~** | ~~llama3는 한국어 성능이 제한적~~ → **qwen2.5:7b 적용 완료** | AI |
 | 2 | **청킹 전략 고도화** | 현재 고정 500자 청킹 → 의미 단위(Semantic) 청킹, 문단/섹션 기반 분할 도입 | RAG |
-| 3 | **비밀번호 변경 기능** | 사용자 본인 비밀번호 변경 UI/API 미구현 | 보안 |
+| 3 | **~~비밀번호 변경 기능~~** | ~~사용자 본인 비밀번호 변경 UI/API 미구현~~ → **PasswordChangeModal 구현 완료** | 보안 |
 | 4 | **에러 핸들링 강화** | 네트워크 단절, Ollama 미응답, DB 연결 실패 등 엣지케이스 처리 | 안정성 |
 | 5 | **프로덕션 빌드 검증** | `npm run build` 정적 빌드 + Nginx 프록시 통합 테스트 | 배포 |
 
@@ -505,7 +569,7 @@ docker-compose up -d          # 실행
 | 16 | **문서 재처리** | 실패한 문서 재분석, 임베딩 모델 변경 후 일괄 재벡터화 | RAG |
 | 17 | **사용자 활동 로그** | 로그인/문서 업로드/질의 기록. 감사 추적(audit trail) | 관리 |
 | 18 | **대시보드 통계** | 일일 질의 수, 활성 사용자, 문서 증가 추세 차트 | 관리 |
-| 19 | **다크 모드** | Tailwind dark: 변형 기반 테마 전환 | UX |
+| 19 | **~~다크 모드~~** | ~~Tailwind dark: 변형 기반 테마 전환~~ → **통합 다크 테마 적용 완료** | UX |
 | 20 | **HWP 지원** | 한/글 문서 파싱 (pyhwp 또는 hwp5 라이브러리) | 문서 |
 | 21 | **OCR 통합** | 이미지/스캔 PDF 텍스트 추출 (Tesseract OCR) | 문서 |
 | 22 | **GPU 가속 (CUDA)** | docker-compose.yml GPU 프로파일 활성화, Ollama GPU 모드 | 성능 |

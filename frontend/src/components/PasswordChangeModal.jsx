@@ -67,12 +67,12 @@ export default function PasswordChangeModal({ isOpen, onClose }) {
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       {/* 백드롭 */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* 모달 */}
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl shadow-black/10 overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-md bg-[#1a1a2e] rounded-2xl shadow-2xl shadow-black/30 overflow-hidden animate-in zoom-in-95 duration-200 border border-white/[0.06]">
         {/* 헤더 */}
         <div className="px-6 pt-6 pb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -80,20 +80,20 @@ export default function PasswordChangeModal({ isOpen, onClose }) {
               <HiOutlineKey className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">비밀번호 변경</h2>
-              <p className="text-xs text-gray-400 mt-0.5">새로운 비밀번호를 설정하세요</p>
+              <h2 className="text-lg font-bold text-gray-100">비밀번호 변경</h2>
+              <p className="text-xs text-gray-500 mt-0.5">새로운 비밀번호를 설정하세요</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+            className="p-2 text-gray-500 hover:text-gray-300 hover:bg-white/[0.06] rounded-xl transition-colors"
           >
             <HiOutlineXMark className="w-5 h-5" />
           </button>
         </div>
 
         {/* 구분선 */}
-        <div className="mx-6 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+        <div className="mx-6 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
 
         {/* 폼 */}
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
@@ -109,13 +109,13 @@ export default function PasswordChangeModal({ isOpen, onClose }) {
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 required
-                className="w-full px-4 py-2.5 pr-10 text-sm border border-gray-200 rounded-xl bg-gray-50/50 focus:bg-white focus:border-baikal-400 focus:ring-2 focus:ring-baikal-400/20 outline-none transition-all"
+                className="w-full px-4 py-2.5 pr-10 text-sm border border-white/[0.06] rounded-xl bg-white/[0.03] text-gray-200 focus:bg-white/[0.05] focus:border-baikal-500/40 focus:ring-2 focus:ring-baikal-500/20 outline-none transition-all placeholder-gray-600"
                 placeholder="현재 비밀번호 입력"
               />
               <button
                 type="button"
                 onClick={() => setShowCurrent(!showCurrent)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
               >
                 {showCurrent ? (
                   <HiOutlineEyeSlash className="w-4 h-4" />
@@ -138,13 +138,13 @@ export default function PasswordChangeModal({ isOpen, onClose }) {
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
                 minLength={4}
-                className="w-full px-4 py-2.5 pr-10 text-sm border border-gray-200 rounded-xl bg-gray-50/50 focus:bg-white focus:border-baikal-400 focus:ring-2 focus:ring-baikal-400/20 outline-none transition-all"
+                className="w-full px-4 py-2.5 pr-10 text-sm border border-white/[0.06] rounded-xl bg-white/[0.03] text-gray-200 focus:bg-white/[0.05] focus:border-baikal-500/40 focus:ring-2 focus:ring-baikal-500/20 outline-none transition-all placeholder-gray-600"
                 placeholder="새 비밀번호 (4자 이상)"
               />
               <button
                 type="button"
                 onClick={() => setShowNew(!showNew)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
               >
                 {showNew ? (
                   <HiOutlineEyeSlash className="w-4 h-4" />
@@ -166,10 +166,10 @@ export default function PasswordChangeModal({ isOpen, onClose }) {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               minLength={4}
-              className={`w-full px-4 py-2.5 text-sm border rounded-xl bg-gray-50/50 focus:bg-white outline-none transition-all ${
+              className={`w-full px-4 py-2.5 text-sm border rounded-xl bg-white/[0.03] text-gray-200 focus:bg-white/[0.05] outline-none transition-all placeholder-gray-600 ${
                 confirmPassword && confirmPassword !== newPassword
-                  ? 'border-rose-300 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20'
-                  : 'border-gray-200 focus:border-baikal-400 focus:ring-2 focus:ring-baikal-400/20'
+                  ? 'border-rose-500/40 focus:border-rose-500/60 focus:ring-2 focus:ring-rose-500/20'
+                  : 'border-white/[0.06] focus:border-baikal-500/40 focus:ring-2 focus:ring-baikal-500/20'
               }`}
               placeholder="새 비밀번호 다시 입력"
             />
@@ -183,7 +183,7 @@ export default function PasswordChangeModal({ isOpen, onClose }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-400 bg-white/[0.04] hover:bg-white/[0.08] rounded-xl transition-colors"
             >
               취소
             </button>

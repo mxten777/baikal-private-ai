@@ -38,10 +38,10 @@ export default function DocumentUpload({ onUploaded }) {
       {...getRootProps()}
       className={`relative rounded-2xl p-5 sm:p-8 text-center cursor-pointer transition-all duration-300 overflow-hidden ${
         isDragActive
-          ? 'bg-baikal-50 border-2 border-baikal-300 shadow-lg shadow-baikal-100/50'
+          ? 'bg-baikal-500/10 border-2 border-baikal-500/40 shadow-lg shadow-baikal-500/10'
           : uploading
-          ? 'bg-gray-50 border-2 border-gray-200 cursor-not-allowed'
-          : 'bg-white border-2 border-dashed border-gray-200 hover:border-baikal-300 hover:bg-baikal-50/30'
+          ? 'bg-white/[0.02] border-2 border-white/[0.06] cursor-not-allowed'
+          : 'bg-white/[0.03] border-2 border-dashed border-white/[0.08] hover:border-baikal-500/30 hover:bg-white/[0.05]'
       }`}
     >
       <input {...getInputProps()} />
@@ -51,26 +51,26 @@ export default function DocumentUpload({ onUploaded }) {
           <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-baikal-600 to-purple-600 flex items-center justify-center">
             <HiOutlineDocument className="w-6 h-6 text-white animate-pulse" />
           </div>
-          <p className="text-sm font-semibold text-gray-700 mb-1">업로드 중...</p>
-          <p className="text-3xl font-black text-gray-900 mb-3">{progress}%</p>
-          <div className="w-56 mx-auto bg-gray-100 rounded-full h-1.5 overflow-hidden">
+          <p className="text-sm font-semibold text-gray-300 mb-1">업로드 중...</p>
+          <p className="text-3xl font-black text-gray-100 mb-3">{progress}%</p>
+          <div className="w-56 mx-auto bg-white/[0.06] rounded-full h-1.5 overflow-hidden">
             <div className="h-full rounded-full bg-gradient-to-r from-baikal-600 to-purple-600 transition-all duration-300" style={{ width: `${progress}%` }} />
           </div>
         </div>
       ) : (
         <div>
           <div className={`w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center transition-all duration-300 ${
-            isDragActive ? 'bg-gradient-to-br from-baikal-600 to-purple-600 scale-110' : 'bg-gray-100'
+            isDragActive ? 'bg-gradient-to-br from-baikal-600 to-purple-600 scale-110' : 'bg-white/[0.06]'
           }`}>
-            <HiOutlineCloudArrowUp className={`w-6 h-6 transition-colors ${isDragActive ? 'text-white' : 'text-gray-400'}`} />
+            <HiOutlineCloudArrowUp className={`w-6 h-6 transition-colors ${isDragActive ? 'text-white' : 'text-gray-500'}`} />
           </div>
-          <p className="text-sm font-semibold text-gray-700 mb-0.5">
+          <p className="text-sm font-semibold text-gray-300 mb-0.5">
             {isDragActive ? '여기에 놓으세요!' : '파일을 드래그하거나 클릭하여 업로드'}
           </p>
-          <p className="text-[11px] text-gray-400 font-medium">PDF, DOCX, XLSX · 최대 100MB</p>
+          <p className="text-[11px] text-gray-500 font-medium">PDF, DOCX, XLSX · 최대 100MB</p>
           <div className="flex items-center justify-center gap-2 mt-4">
             {['PDF', 'DOCX', 'XLSX'].map((ext) => (
-              <span key={ext} className="px-2 py-1 rounded-lg bg-gray-50 text-[10px] font-bold text-gray-400 tracking-wider">.{ext}</span>
+              <span key={ext} className="px-2 py-1 rounded-lg bg-white/[0.04] text-[10px] font-bold text-gray-500 tracking-wider">.{ext}</span>
             ))}
           </div>
         </div>
