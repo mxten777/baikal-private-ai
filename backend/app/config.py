@@ -30,9 +30,10 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_MB: int = 100
 
     # RAG
-    CHUNK_SIZE: int = 500
-    CHUNK_OVERLAP: int = 50
+    CHUNK_SIZE: int = 800
+    CHUNK_OVERLAP: int = 100
     TOP_K: int = 5
+    SIMILARITY_THRESHOLD: float = 0.3  # 이 값 이하의 거리(너무 낮은 관련성) 필터링
     EMBEDDING_DIMENSION: int = 1024
 
     class Config:

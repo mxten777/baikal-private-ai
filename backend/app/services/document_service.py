@@ -13,11 +13,15 @@ from app.database import async_session
 settings = get_settings()
 logger = logging.getLogger("baikal.document")
 
-ALLOWED_EXTENSIONS = {"pdf", "docx", "xlsx"}
+ALLOWED_EXTENSIONS = {"pdf", "docx", "xlsx", "hwp", "hwpx"}
 MIME_TO_EXT = {
     "application/pdf": "pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+    "application/x-hwp": "hwp",
+    "application/haansofthwp": "hwp",
+    "application/vnd.hancom.hwp": "hwp",
+    "application/vnd.hancom.hwpx": "hwpx",
 }
 
 
@@ -38,7 +42,7 @@ def validate_file(filename: str, content_type: str | None, file_size: int) -> st
     if ext not in ALLOWED_EXTENSIONS:
         raise ValueError(
             f"지원하지 않는 파일 형식입니다: .{ext}\n"
-            f"지원 형식: PDF, DOCX, XLSX"
+            f"지원 형식: PDF, DOCX, XLSX, HWP, HWPX"
         )
 
     if file_size > settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024:

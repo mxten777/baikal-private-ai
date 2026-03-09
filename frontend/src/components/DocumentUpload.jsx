@@ -11,6 +11,10 @@ const ACCEPTED = {
   'application/pdf': ['.pdf'],
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+  'application/x-hwp': ['.hwp'],
+  'application/haansofthwp': ['.hwp'],
+  'application/vnd.hancom.hwp': ['.hwp'],
+  'application/vnd.hancom.hwpx': ['.hwpx'],
 };
 
 export default function DocumentUpload({ onUploaded }) {
@@ -67,9 +71,9 @@ export default function DocumentUpload({ onUploaded }) {
           <p className="text-sm font-semibold text-gray-300 mb-0.5">
             {isDragActive ? '여기에 놓으세요!' : '파일을 드래그하거나 클릭하여 업로드'}
           </p>
-          <p className="text-[11px] text-gray-500 font-medium">PDF, DOCX, XLSX · 최대 100MB</p>
+          <p className="text-[11px] text-gray-500 font-medium">PDF, DOCX, XLSX, HWP, HWPX · 최대 100MB</p>
           <div className="flex items-center justify-center gap-2 mt-4">
-            {['PDF', 'DOCX', 'XLSX'].map((ext) => (
+            {['PDF', 'DOCX', 'XLSX', 'HWP', 'HWPX'].map((ext) => (
               <span key={ext} className="px-2 py-1 rounded-lg bg-white/[0.04] text-[10px] font-bold text-gray-500 tracking-wider">.{ext}</span>
             ))}
           </div>

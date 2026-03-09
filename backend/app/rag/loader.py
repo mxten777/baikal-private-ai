@@ -12,6 +12,8 @@ def extract_text(filepath: str, file_type: str) -> str:
         "pdf": extract_pdf,
         "docx": extract_docx,
         "xlsx": extract_xlsx,
+        "hwp": extract_hwp,
+        "hwpx": extract_hwpx,
     }
 
     extractor = extractors.get(file_type)
@@ -113,4 +115,91 @@ def extract_xlsx(filepath: str) -> str:
                 break
 
     wb.close()
+    return "\n".join(text_parts)
+
+
+def extract_hwp(filepath: str) -> str:
+    """HWP 파일에서 텍스트 추출 (OLE 바이너리 포맷)"""
+    try:
+        import olefile
+        import zlib
+        import struct
+    except ImportError:
+        raise ImportError("olefile이 설치되지 않았습니다: pip install olefile")
+
+    if not olefile.isOleFile(filepath):
+        raise ValueError("유효하지 않은 HWP 파일입니다")
+
+    ole = olefile.OleFileIO(filepath)
+    text_parts = []
+
+    i = 1
+    while True:
+        stream_name = f'BodyText/Section{i:04d}'
+        if not ole.exists(stream_name):
+            break
+        try:
+            data = ole.openstream(stream_name).read()
+            # zlib 압축 해제 시도
+            try:
+                data = zlib.decompress(data, -15)
+            except Exception:
+                pass
+
+            # HWP 레코드 구조 파싱
+            pos = 0
+            while pos + 4 <= len(data):
+                header = struct.unpack_from('<I', data, pos)[0]
+                rec_type = header & 0x3FF
+                size = (header >> 20) & 0xFFF
+                if size == 0xFFF:
+                    if pos + 8 > len(data):
+                        break
+                    size = struct.unpack_from('<I', data, pos + 4)[0]
+                    pos += 8
+                else:
+                    pos += 4
+
+                # HWPTAG_PARA_TEXT (rec_type 67 = 0x43)
+                if rec_type == 67:
+                    try:
+                        text = data[pos:pos + size].decode('utf-16-le', errors='ignore')
+                        text = ''.join(c for c in text if ord(c) >= 32 or c in '\n\t')
+                        if text.strip():
+                            text_parts.append(text)
+                    except Exception:
+                        pass
+                pos += size
+        except Exception as e:
+            logger.warning(f"HWP Section{i} 처리 실패: {e}")
+        i += 1
+
+    ole.close()
+    if not text_parts:
+        logger.warning(f"HWP에서 텍스트를 추출하지 못했습니다: {filepath}")
+    return "\n".join(text_parts)
+
+
+def extract_hwpx(filepath: str) -> str:
+    """HWPX 파일에서 텍스트 추출 (ZIP+XML 포맷)"""
+    import zipfile
+    import xml.etree.ElementTree as ET
+
+    text_parts = []
+    with zipfile.ZipFile(filepath, 'r') as z:
+        section_files = sorted([
+            f for f in z.namelist()
+            if 'section' in f.lower() and f.endswith('.xml')
+        ])
+        for section_file in section_files:
+            try:
+                xml_data = z.read(section_file)
+                root = ET.fromstring(xml_data)
+                for elem in root.iter():
+                    if elem.text and elem.text.strip():
+                        tag = elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
+                        if tag in ('t', 'run', 'text', 'para'):
+                            text_parts.append(elem.text.strip())
+            except Exception as e:
+                logger.warning(f"HWPX 섹션 파싱 실패 {section_file}: {e}")
     return "\n".join(text_parts)
