@@ -115,9 +115,19 @@ export default function ChatPage() {
     } finally { setLoading(false); }
   };
 
-  const handleQuickQuestion = (q) => {
+  const handleQuickQuestion = async (q) => {
     setQuestion(q);
-    inputRef.current?.focus();
+    if (loading) return;
+    if (!activeSession) {
+      try {
+        const res = await chatAPI.createSession('새 대화');
+        setSessions([res.data, ...sessions]);
+        setActiveSession(res.data.id);
+        await askQuestion(res.data.id, q);
+      } catch { toast.error('세션 생성 실패'); }
+    } else {
+      await askQuestion(activeSession, q);
+    }
   };
 
   return (

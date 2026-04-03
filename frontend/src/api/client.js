@@ -191,7 +191,7 @@ export const chatAPI = {
 
 // ---- Search API ----
 export const searchAPI = {
-  search: (query) => client.get('/search', { params: { q: query } }),
+  search: (query, mode = 'hybrid') => client.get('/search', { params: { q: query, mode } }),
 };
 
 export default client;

@@ -11,8 +11,15 @@ import {
   HiOutlineArrowTrendingUp,
 } from 'react-icons/hi2';
 
+const MODES = [
+  { id: 'hybrid',  label: '하이브리드', desc: '키워드 + 의미 검색 (권장)' },
+  { id: 'keyword', label: '키워드',    desc: '정확한 단어 일치' },
+  { id: 'vector',  label: '벡터',      desc: '의미 유사도 기반' },
+];
+
 export default function SearchPage() {
   const [query, setQuery] = useState('');
+  const [mode, setMode] = useState('hybrid');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -21,7 +28,7 @@ export default function SearchPage() {
     e.preventDefault();
     if (!query.trim()) return;
     setLoading(true); setSearched(true);
-    try { const res = await searchAPI.search(query.trim()); setResults(res.data); }
+    try { const res = await searchAPI.search(query.trim(), mode); setResults(res.data); }
     catch { toast.error('검색 실패'); }
     finally { setLoading(false); }
   };
@@ -33,6 +40,25 @@ export default function SearchPage() {
         <div className="mb-6 sm:mb-8">
           <h1 className="text-xl sm:text-[28px] font-extrabold text-gray-100 tracking-tight">문서 검색</h1>
           <p className="text-sm text-gray-500 mt-1 font-medium">업로드된 문서에서 의미 기반 검색</p>
+        </div>
+
+        {/* 검색 모드 선택 */}
+        <div className="flex gap-1.5 mb-4 p-1 rounded-lg bg-white/[0.03] border border-white/[0.06] w-fit">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setMode(m.id)}
+              title={m.desc}
+              className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                mode === m.id
+                  ? 'bg-baikal-600 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.05]'
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
 
         {/* 검색창 */}
