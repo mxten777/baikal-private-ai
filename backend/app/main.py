@@ -7,10 +7,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
 from app.config import get_settings
 from app.database import init_db, async_session
 from app.api import auth, users, documents, chat, search
 from app.services.auth_service import create_default_admin
+from app.core.limits import limiter
 
 settings = get_settings()
 
@@ -49,6 +52,24 @@ async def lifespan(app: FastAPI):
             settings.DEFAULT_ADMIN_PASSWORD,
         )
 
+    # 고착 문서 복구 — 서버 재시작 전 처리 중이던 문서를 failed로 표시
+    async with async_session() as db:
+        from sqlalchemy import update
+        from app.models.document import Document
+        result = await db.execute(
+            update(Document)
+            .where(Document.status.in_(["processing", "uploading"]))
+            .values(
+                status="failed",
+                error_message="서버 재시작으로 인해 처리가 중단되었습니다. 파일을 다시 업로드해주세요.",
+            )
+            .returning(Document.id)
+        )
+        recovered = result.fetchall()
+        if recovered:
+            logger.warning(f"고착 문서 {len(recovered)}건을 failed 상태로 복구했습니다: {[r[0] for r in recovered]}")
+        await db.commit()
+
     logger.info("시스템 준비 완료")
     yield
     logger.info("시스템 종료")
@@ -60,6 +81,10 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Rate limiter 등록
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # 글로벌 예외 처리
 @app.exception_handler(Exception)
@@ -78,12 +103,14 @@ async def value_error_handler(request: Request, exc: ValueError):
     )
 
 # CORS
+# JWT 토큰은 Authorization 헤더로 전달되므로 credentials(쿠키) 불필요
+# allow_origins와 allow_credentials=True 조합은 브라우저 스펙 위반
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # 라우터 등록

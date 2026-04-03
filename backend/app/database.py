@@ -42,26 +42,35 @@ async def get_db() -> AsyncSession:
 
 
 async def init_db():
-    """DB 초기화: 테이블 생성 + pgvector 확장 + 인덱스"""
+    """DB 초기화: Alembic 마이그레이션 실행 + 인덱스 보장"""
+    import subprocess
+    import sys
     from sqlalchemy import text
+
+    # 1. pgvector 확장 (Alembic 마이그레이션 전에 먼저 활성화)
     async with engine.begin() as conn:
-        # pgvector 확장
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         logger.info("pgvector 확장 활성화")
 
-        # 테이블 생성
-        await conn.run_sync(Base.metadata.create_all)
-        logger.info("테이블 생성 완료")
+    # 2. Alembic 마이그레이션 실행 (새 스키마 변경 포함)
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        logger.error(f"Alembic 마이그레이션 실패:\n{result.stderr}")
+        raise RuntimeError("DB 마이그레이션 실패")
+    logger.info(f"DB 마이그레이션 완료:\n{result.stdout.strip()}")
 
-        # Vector 검색 인덱스 (HNSW - 데이터 없이도 생성 가능, 높은 정확도)
+    # 3. 추가 인덱스 보장 (Alembic 마이그레이션과 별개로 幂等하게 생성)
+    async with engine.begin() as conn:
         await conn.execute(text("""
             CREATE INDEX IF NOT EXISTS idx_chunk_embedding 
             ON document_chunks 
             USING hnsw (embedding vector_cosine_ops)
             WITH (m = 16, ef_construction = 64)
         """))
-
-        # 추가 인덱스
         await conn.execute(text("""
             CREATE INDEX IF NOT EXISTS idx_documents_status 
             ON documents (status)

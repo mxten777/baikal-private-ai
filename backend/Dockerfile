@@ -20,4 +20,6 @@ RUN mkdir -p /app/uploads
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --workers 4: 동시 요청 처리 (LLM 요청이 다른 API를 블로킹하지 않도록)
+# Python 3.11+ 에서 uvicorn --workers 네이티브 지원
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

@@ -2,7 +2,7 @@
 Users API - 사용자 관리 (Admin)
 """
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
@@ -16,11 +16,15 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 
 @router.get("", response_model=List[UserResponse])
 async def list_users(
+    skip: int = Query(0, ge=0, description="건너뛸 항목 수"),
+    limit: int = Query(100, ge=1, le=500, description="최대 반환 수"),
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(require_admin),
 ):
-    """사용자 목록 (Admin)"""
-    result = await db.execute(select(User).order_by(User.created_at.desc()))
+    """사용자 목록 (Admin, 페이지네이션 지원)"""
+    result = await db.execute(
+        select(User).order_by(User.created_at.desc()).offset(skip).limit(limit)
+    )
     users = result.scalars().all()
     return users
 

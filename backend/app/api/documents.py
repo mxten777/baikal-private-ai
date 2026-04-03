@@ -3,10 +3,10 @@ Documents API - 문서 관리
 """
 import asyncio
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.database import get_db
 from app.schemas.document import DocumentResponse, DocumentStatusResponse
 from app.models.document import Document
@@ -19,17 +19,23 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 @router.get("", response_model=List[DocumentResponse])
 async def list_documents(
+    skip: int = Query(0, ge=0, description="건너뛸 항목 수"),
+    limit: int = Query(50, ge=1, le=200, description="최대 반환 수"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """문서 목록 조회"""
+    """문서 목록 조회 (페이지네이션 지원)"""
     if current_user.role == "admin":
-        result = await db.execute(select(Document).order_by(Document.created_at.desc()))
+        result = await db.execute(
+            select(Document).order_by(Document.created_at.desc()).offset(skip).limit(limit)
+        )
     else:
         result = await db.execute(
             select(Document)
             .where(Document.uploaded_by == current_user.id)
             .order_by(Document.created_at.desc())
+            .offset(skip)
+            .limit(limit)
         )
     documents = result.scalars().all()
     return documents
@@ -72,13 +78,16 @@ async def get_document_status(
 async def download_document(
     document_id: str,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    """문서 다운로드"""
+    """문서 다운로드 (본인 업로드 또는 관리자만 허용)"""
     result = await db.execute(select(Document).where(Document.id == document_id))
     doc = result.scalar_one_or_none()
     if doc is None:
         raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다")
+
+    if current_user.role != "admin" and doc.uploaded_by != current_user.id:
+        raise HTTPException(status_code=403, detail="이 문서에 접근할 권한이 없습니다")
 
     return FileResponse(
         path=doc.filepath,

@@ -20,13 +20,28 @@ Thumbs.db
 postgres_data/
 ollama_data/
 
-# Uploads
+# Uploads (실제 업로드 파일은 git에서 제외)
+uploads/
 backend/uploads/*
 !backend/uploads/.gitkeep
+# 잘못 중첩된 경로도 제외
+backend/backend/
 
 # Node
 frontend/node_modules/
 frontend/build/
+
+# Python build
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Alembic (자동 생성 파일)
+# alembic/versions/*.pyc 는 위 *.py[cod]로 처리
+
+# Logs
+*.log
 
 # Offline package
 offline-package/

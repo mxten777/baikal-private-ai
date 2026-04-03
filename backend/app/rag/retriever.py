@@ -14,7 +14,8 @@ logger = logging.getLogger("baikal.retriever")
 
 
 def _bm25_score(query_tokens: List[str], doc_tokens: List[str],
-                avgdl: float, k1: float = 1.5, b: float = 0.75) -> float:
+                avgdl: float, idf_map: dict,
+                k1: float = 1.5, b: float = 0.75) -> float:
     """BM25 점수 계산 (단일 문서)"""
     score = 0.0
     doc_len = len(doc_tokens)
@@ -26,11 +27,25 @@ def _bm25_score(query_tokens: List[str], doc_tokens: List[str],
         tf = tf_map.get(token, 0)
         if tf == 0:
             continue
-        idf = math.log(1 + 1)  # 단순화된 IDF (전체 코퍼스 없이)
+        idf = idf_map.get(token, 0.0)
         numerator = tf * (k1 + 1)
         denominator = tf + k1 * (1 - b + b * doc_len / max(avgdl, 1))
         score += idf * (numerator / denominator)
     return score
+
+
+def _compute_idf(corpus: List[List[str]]) -> dict:
+    """후보 문서 집합 기반 IDF 계산 (BM25 표준식)"""
+    N = len(corpus)
+    df: dict = {}
+    for doc_tokens in corpus:
+        for token in set(doc_tokens):  # 문서별 중복 제거
+            df[token] = df.get(token, 0) + 1
+    idf_map = {}
+    for token, freq in df.items():
+        # Robertson IDF (음수 방지 처리 포함)
+        idf_map[token] = math.log((N - freq + 0.5) / (freq + 0.5) + 1)
+    return idf_map
 
 
 def _tokenize(text: str) -> List[str]:
@@ -136,9 +151,10 @@ async def retrieve_relevant_chunks(
     query_tokens = _tokenize(query)
     all_tokens = [_tokenize(c["content"]) for c in candidates]
     avgdl = sum(len(t) for t in all_tokens) / max(len(all_tokens), 1)
+    idf_map = _compute_idf(all_tokens)
 
     bm25_scores = [
-        _bm25_score(query_tokens, doc_tokens, avgdl)
+        _bm25_score(query_tokens, doc_tokens, avgdl, idf_map)
         for doc_tokens in all_tokens
     ]
 

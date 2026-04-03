@@ -4,7 +4,7 @@ Chat API - AI 질문응답
 import json
 import logging
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -25,14 +25,18 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 @router.get("/sessions", response_model=List[ChatSessionResponse])
 async def list_sessions(
+    skip: int = Query(0, ge=0, description="건너뛸 항목 수"),
+    limit: int = Query(50, ge=1, le=200, description="최대 반환 수"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """채팅 세션 목록"""
+    """채팅 세션 목록 (페이지네이션 지원)"""
     result = await db.execute(
         select(ChatSession)
         .where(ChatSession.user_id == current_user.id)
         .order_by(ChatSession.created_at.desc())
+        .offset(skip)
+        .limit(limit)
     )
     sessions = result.scalars().all()
     return sessions

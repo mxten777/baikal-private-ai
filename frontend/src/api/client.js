@@ -121,15 +121,42 @@ export const chatAPI = {
 
   // 스트리밍 질문응답
   askStream: async function* (sessionId, question) {
-    const token = localStorage.getItem('access_token');
-    const response = await fetch(`${API_BASE}/chat/ask/stream`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ session_id: sessionId, question }),
-    });
+    // 토큰 갱신 후 fetch 헬퍼 (SSE는 Axios 인터셉터 우회하므로 직접 처리)
+    const fetchWithAuth = async () => {
+      const token = localStorage.getItem('access_token');
+      return fetch(`${API_BASE}/chat/ask/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ session_id: sessionId, question }),
+      });
+    };
+
+    let response = await fetchWithAuth();
+
+    // 401: 토큰 갱신 후 1회 재시도
+    if (response.status === 401) {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        window.location.href = '/login';
+        return;
+      }
+      try {
+        const res = await axios.post(`${API_BASE}/auth/refresh`, {
+          refresh_token: refreshToken,
+        });
+        localStorage.setItem('access_token', res.data.access_token);
+        localStorage.setItem('refresh_token', res.data.refresh_token);
+        response = await fetchWithAuth();
+      } catch {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.location.href = '/login';
+        return;
+      }
+    }
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({ detail: '스트리밍 요청 실패' }));

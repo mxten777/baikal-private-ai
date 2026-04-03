@@ -1,7 +1,7 @@
 """
 Auth API - 로그인, 토큰 갱신
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.schemas.user import (
@@ -11,6 +11,7 @@ from app.schemas.user import (
 from app.services.auth_service import authenticate_user, create_tokens
 from app.core.security import decode_token, verify_password, hash_password
 from app.core.deps import get_current_user
+from app.core.limits import limiter
 from app.models.user import User
 from sqlalchemy import select
 
@@ -18,9 +19,10 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
-    """로그인"""
-    user = await authenticate_user(db, request.username, request.password)
+@limiter.limit("5/minute")
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
+    """로그인 (분당 5회 시도 제한)"""
+    user = await authenticate_user(db, body.username, body.password)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -74,14 +76,7 @@ async def change_password(
             detail="현재 비밀번호가 올바르지 않습니다",
         )
 
-    # 새 비밀번호 유효성 검사
-    if len(request.new_password) < 4:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="새 비밀번호는 4자 이상이어야 합니다",
-        )
-
-    # 비밀번호 업데이트
+    # 비밀번호 업데이트 (길이 검사는 PasswordChangeRequest 스키마에서 처리됨)
     current_user.password_hash = hash_password(request.new_password)
     await db.commit()
 
