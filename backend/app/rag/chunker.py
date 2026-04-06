@@ -100,3 +100,40 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]
                 start = end - overlap
 
     return [c for c in chunks if c]
+
+
+def table_chunk_to_nl(chunk: str) -> str:
+    """표 청크를 자연어 문장으로 변환 (임베딩 품질 향상).
+    탭 구분 행이 없으면 원본 그대로 반환.
+
+    예시 변환:
+      입력:  "이름\t금액\t연도\n홍길동\t5000\t2024"
+      출력:  "이름이 홍길동이고 금액이 5000이며 연도는 2024입니다."
+    """
+    lines = [l for l in chunk.strip().split("\n") if l.strip()]
+    if len(lines) < 2:
+        return chunk
+
+    # 헤더 행 (탭 구분) 감지
+    header_line = lines[0]
+    if "\t" not in header_line:
+        return chunk
+
+    headers = [h.strip() for h in header_line.split("\t")]
+    nl_parts = []
+
+    for row_line in lines[1:]:
+        if "\t" not in row_line:
+            nl_parts.append(row_line)
+            continue
+        cells = [c.strip() for c in row_line.split("\t")]
+        pairs = []
+        for h, v in zip(headers, cells):
+            if h and v and v not in ("", "X", "-"):
+                pairs.append(f"{h}이 {v}")
+        if pairs:
+            nl_parts.append("이 행은 " + "이고 ".join(pairs) + "입니다.")
+
+    if not nl_parts:
+        return chunk
+    return header_line + "\n" + "\n".join(nl_parts)

@@ -101,6 +101,8 @@ async def ask(
             session_id=request.session_id,
             user_id=current_user.id,
             db=db,
+            document_ids=request.document_ids,
+            user_role=current_user.role,
         )
         return result
     except ValueError as e:
@@ -131,6 +133,8 @@ async def ask_stream(
                 session_id=request.session_id,
                 user_id=current_user.id,
                 db=db,
+                document_ids=request.document_ids,
+                user_role=current_user.role,
             ):
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
         except Exception as e:

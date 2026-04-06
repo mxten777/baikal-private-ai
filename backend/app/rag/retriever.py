@@ -112,9 +112,13 @@ def _mmr_rerank(candidates: List[dict], top_k: int, lambda_val: float = 0.6) -> 
 
 
 async def retrieve_relevant_chunks(
-    query: str, db: AsyncSession, top_k: int = None
+    query: str, db: AsyncSession, top_k: int = None,
+    document_ids: list = None, user_role: str = "user"
 ) -> List[dict]:
-    """하이브리드 검색 (Vector + BM25) + MMR Reranking"""
+    """하이브리드 검색 (Vector + BM25) + Cross-encoder Reranking
+    document_ids: None이면 접근 가능한 전체 문서, 리스트면 해당 문서만 검색
+    user_role: 문서 권한 필터링용
+    """
     if top_k is None:
         top_k = settings.TOP_K
 
@@ -125,21 +129,36 @@ async def retrieve_relevant_chunks(
 
     # 2단계: 벡터 검색 - 후보 더 많이 가져오기 (top_k * 3)
     candidate_k = min(top_k * 3, 20)
-    search_query = sql_text("""
+
+    # 권한 필터: is_public=true OR allowed_roles에 user_role 포함
+    doc_filter = """
+        AND (d.is_public = true
+             OR d.allowed_roles IS NULL
+             OR d.allowed_roles::jsonb @> to_jsonb(:user_role::text))
+    """
+    id_filter = ""
+    params: dict = {"embedding": embedding_str, "top_k": candidate_k, "user_role": user_role}
+
+    if document_ids:
+        placeholders = ", ".join(f":did_{i}" for i in range(len(document_ids)))
+        id_filter = f"AND dc.document_id IN ({placeholders})"
+        for i, did in enumerate(document_ids):
+            params[f"did_{i}"] = did
+
+    search_query = sql_text(f"""
         SELECT dc.id, dc.content, dc.document_id, dc.chunk_index,
                d.filename,
                dc.embedding <=> CAST(:embedding AS vector) AS distance
         FROM document_chunks dc
         JOIN documents d ON d.id = dc.document_id
         WHERE d.status = 'completed'
+        {doc_filter}
+        {id_filter}
         ORDER BY dc.embedding <=> CAST(:embedding AS vector)
         LIMIT :top_k
     """)
 
-    result = await db.execute(
-        search_query,
-        {"embedding": embedding_str, "top_k": candidate_k},
-    )
+    result = await db.execute(search_query, params)
     rows = result.fetchall()
 
     if not rows:

@@ -3,7 +3,8 @@ Document, Chunk, Chat Models
 """
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, Integer, BigInteger, Text, DateTime, ForeignKey, JSON
+from typing import Optional, List
+from sqlalchemy import String, Integer, BigInteger, Float, Text, DateTime, ForeignKey, JSON, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
 from app.database import Base
@@ -22,7 +23,7 @@ class Document(Base):
     )
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     filepath: Mapped[str] = mapped_column(String(500), nullable=False)
-    file_type: Mapped[str] = mapped_column(String(20), nullable=False)  # pdf, docx, xlsx
+    file_type: Mapped[str] = mapped_column(String(20), nullable=False)
     file_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     status: Mapped[str] = mapped_column(
         String(20), default="uploading", nullable=False
@@ -31,6 +32,8 @@ class Document(Base):
         String(36), ForeignKey("users.id"), nullable=False
     )
     error_message: Mapped[str] = mapped_column(Text, nullable=True)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    allowed_roles: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
@@ -49,6 +52,7 @@ class DocumentChunk(Base):
     )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    nl_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     embedding = mapped_column(Vector(settings.EMBEDDING_DIMENSION), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
@@ -85,9 +89,28 @@ class ChatMessage(Base):
     )
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # user / assistant
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    sources: Mapped[dict] = mapped_column(JSON, nullable=True)  # 참고 문서 목록
+    sources: Mapped[dict] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
 
     session = relationship("ChatSession", back_populates="messages")
+
+
+class QueryLog(Base):
+    __tablename__ = "query_logs"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False
+    )
+    query: Mapped[str] = mapped_column(Text, nullable=False)
+    response_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    document_ids: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)
+    confidence_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )

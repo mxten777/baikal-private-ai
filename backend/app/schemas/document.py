@@ -3,7 +3,7 @@ Document Schemas
 """
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 
 class DocumentResponse(BaseModel):
@@ -14,6 +14,8 @@ class DocumentResponse(BaseModel):
     status: str
     uploaded_by: str
     error_message: Optional[str] = None
+    is_public: bool = True
+    allowed_roles: Optional[List[str]] = None
     created_at: datetime
 
     class Config:
@@ -26,8 +28,17 @@ class DocumentStatusResponse(BaseModel):
     error_message: Optional[str] = None
 
 
+class ChunkPreview(BaseModel):
+    chunk_id: str
+    chunk_index: int
+    content: str
+    document_name: str
+
+
 class SearchResult(BaseModel):
     document_id: str
     filename: str
     content_snippet: str
     score: Optional[float] = None
+    chunk_id: Optional[str] = None
+    chunk_index: Optional[int] = None

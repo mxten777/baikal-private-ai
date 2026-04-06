@@ -2,10 +2,11 @@
 RAG Service - 질문응답 파이프라인
 """
 import logging
+import time
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
-from app.models.document import Document, DocumentChunk, ChatSession, ChatMessage
+from app.models.document import Document, DocumentChunk, ChatSession, ChatMessage, QueryLog
 from app.services.llm_service import call_ollama_chat, call_ollama_chat_stream, call_ollama_embedding
 from app.rag.retriever import retrieve_relevant_chunks
 from app.config import get_settings
@@ -44,9 +45,11 @@ async def _get_chat_history(session_id: str, db: AsyncSession) -> list[dict]:
 
 
 async def ask_question(
-    question: str, session_id: str, user_id: str, db: AsyncSession
+    question: str, session_id: str, user_id: str, db: AsyncSession,
+    document_ids: list = None, user_role: str = "user"
 ) -> dict:
     """RAG 기반 질문응답"""
+    start_time = time.time()
 
     # 1. 세션 확인
     result = await db.execute(
@@ -59,7 +62,9 @@ async def ask_question(
         raise ValueError("채팅 세션을 찾을 수 없습니다")
 
     # 2. Vector 유사도 검색 (retriever 사용)
-    chunks = await retrieve_relevant_chunks(question, db)
+    chunks = await retrieve_relevant_chunks(
+        question, db, document_ids=document_ids, user_role=user_role
+    )
 
     # 3. 컨텍스트 생성
     context_parts = []
@@ -74,15 +79,21 @@ async def ask_question(
                 "document_id": chunk['document_id'],
                 "filename": chunk['filename'],
                 "relevance_score": chunk['score'],
+                "chunk_id": chunk.get('chunk_id'),
+                "chunk_index": chunk['chunk_index'],
+                "chunk_content": chunk['content'][:300],
             })
             seen_docs.add(chunk['document_id'])
 
     context = "\n\n---\n\n".join(context_parts) if context_parts else "관련 문서를 찾을 수 없습니다."
 
-    # 4. 대화 히스토리 가져오기
+    # 4. 신뢰도 점수 계산
+    confidence_score = round(sum(c['score'] for c in chunks) / len(chunks), 3) if chunks else 0.0
+
+    # 5. 대화 히스토리 가져오기
     history = await _get_chat_history(session_id, db)
 
-    # 5. LLM 메시지 구성 (시스템 + 히스토리 + 현재 질문)
+    # 6. LLM 메시지 구성 (시스템 + 히스토리 + 현재 질문)
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages.extend(history)
     messages.append({
@@ -90,10 +101,26 @@ async def ask_question(
         "content": f"참고 문서:\n{context}\n\n질문: {question}\n\n위 문서 내용을 기반으로 답변해주세요."
     })
 
-    # 6. LLM 호출
+    # 7. LLM 호출
     answer = await call_ollama_chat(messages=messages)
 
-    # 7. 메시지 저장
+    latency_ms = int((time.time() - start_time) * 1000)
+
+    # 8. 감사 로그 저장
+    try:
+        query_log = QueryLog(
+            user_id=user_id,
+            query=question,
+            response_summary=answer[:500],
+            document_ids=[s['document_id'] for s in sources],
+            confidence_score=confidence_score,
+            latency_ms=latency_ms,
+        )
+        db.add(query_log)
+    except Exception as e:
+        logger.warning(f"감사 로그 저장 실패: {e}")
+
+    # 9. 메시지 저장
     user_msg = ChatMessage(
         session_id=session_id,
         role="user",
@@ -120,12 +147,18 @@ async def ask_question(
         "answer": answer,
         "sources": sources,
         "message_id": assistant_msg.id,
+        "confidence_score": confidence_score,
     }
 
 
-async def _build_rag_context(question: str, db: AsyncSession) -> tuple[str, list]:
+async def _build_rag_context(
+    question: str, db: AsyncSession,
+    document_ids: list = None, user_role: str = "user"
+) -> tuple[str, list, float]:
     """질문에 대한 RAG 컨텍스트 생성 (retriever 사용)"""
-    chunks = await retrieve_relevant_chunks(question, db)
+    chunks = await retrieve_relevant_chunks(
+        question, db, document_ids=document_ids, user_role=user_role
+    )
 
     context_parts = []
     sources = []
@@ -139,17 +172,23 @@ async def _build_rag_context(question: str, db: AsyncSession) -> tuple[str, list
                 "document_id": chunk['document_id'],
                 "filename": chunk['filename'],
                 "relevance_score": chunk['score'],
+                "chunk_id": chunk.get('chunk_id'),
+                "chunk_index": chunk['chunk_index'],
+                "chunk_content": chunk['content'][:300],
             })
             seen_docs.add(chunk['document_id'])
 
     context = "\n\n---\n\n".join(context_parts) if context_parts else "관련 문서를 찾을 수 없습니다."
-    return context, sources
+    confidence_score = round(sum(c['score'] for c in chunks) / len(chunks), 3) if chunks else 0.0
+    return context, sources, confidence_score
 
 
 async def ask_question_stream(
-    question: str, session_id: str, user_id: str, db: AsyncSession
+    question: str, session_id: str, user_id: str, db: AsyncSession,
+    document_ids: list = None, user_role: str = "user"
 ) -> AsyncGenerator[dict, None]:
     """RAG 기반 질문응답 (스트리밍)"""
+    start_time = time.time()
 
     # 세션 확인
     result = await db.execute(
@@ -163,7 +202,9 @@ async def ask_question_stream(
         return
 
     # RAG 컨텍스트 생성
-    context, sources = await _build_rag_context(question, db)
+    context, sources, confidence_score = await _build_rag_context(
+        question, db, document_ids=document_ids, user_role=user_role
+    )
 
     # 소스 먼저 전송
     yield {"type": "sources", "sources": sources}
@@ -185,8 +226,24 @@ async def ask_question_stream(
         full_answer += chunk
         yield {"type": "token", "content": chunk}
 
-    # 완료 신호
-    yield {"type": "done", "content": full_answer}
+    latency_ms = int((time.time() - start_time) * 1000)
+
+    # 완료 신호 (신뢰도 점수 포함)
+    yield {"type": "done", "content": full_answer, "confidence_score": confidence_score}
+
+    # 감사 로그 저장
+    try:
+        query_log = QueryLog(
+            user_id=user_id,
+            query=question,
+            response_summary=full_answer[:500],
+            document_ids=[s['document_id'] for s in sources],
+            confidence_score=confidence_score,
+            latency_ms=latency_ms,
+        )
+        db.add(query_log)
+    except Exception as e:
+        logger.warning(f"감사 로그 저장 실패: {e}")
 
     # 메시지 저장
     user_msg = ChatMessage(session_id=session_id, role="user", content=question)

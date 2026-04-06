@@ -158,9 +158,13 @@ async def process_document_async(document_id: str):
 
             logger.info(f"청킹 완료: {doc.filename} → {len(chunks)} chunks")
 
-            # 3. 임베딩 생성
+            # 3. 표 청크 자연어 변환 (임베딩용) — 원본은 content에 보존
+            from app.rag.chunker import table_chunk_to_nl
+            nl_texts = [table_chunk_to_nl(c) for c in chunks]
+
+            # 4. 임베딩 생성 (자연어 변환본 사용)
             try:
-                embeddings = await generate_embeddings(chunks)
+                embeddings = await generate_embeddings(nl_texts)
             except Exception as e:
                 doc.status = "failed"
                 doc.error_message = f"임베딩 생성 실패: {str(e)[:200]}"
@@ -168,13 +172,16 @@ async def process_document_async(document_id: str):
                 logger.error(f"임베딩 실패: {doc.filename} - {e}")
                 return
 
-            # 4. DB 저장 (null 바이트 제거 - PostgreSQL UTF-8 거부 방지)
-            for i, (chunk_content, embedding) in enumerate(zip(chunks, embeddings)):
+            # 5. DB 저장 (null 바이트 제거 - PostgreSQL UTF-8 거부 방지)
+            for i, (chunk_content, nl_text, embedding) in enumerate(zip(chunks, nl_texts, embeddings)):
                 clean_content = chunk_content.replace('\x00', '').replace('\uf000', '')
+                clean_nl = nl_text.replace('\x00', '').replace('\uf000', '')
+                nl_stored = clean_nl if clean_nl != clean_content else None
                 chunk = DocumentChunk(
                     document_id=document_id,
                     chunk_index=i,
                     content=clean_content,
+                    nl_content=nl_stored,
                     embedding=embedding,
                 )
                 db.add(chunk)

@@ -3,7 +3,7 @@
  * 중앙 집중형 + 다크 세션 패널
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { chatAPI } from '../api/client';
+import { chatAPI, documentsAPI } from '../api/client';
 import ChatMessage from '../components/ChatMessage';
 import toast from 'react-hot-toast';
 import {
@@ -17,6 +17,8 @@ import {
   HiOutlineChevronLeft,
   HiOutlineMagnifyingGlass,
   HiOutlineArrowPath,
+  HiOutlineFunnel,
+  HiOutlineXMark,
 } from 'react-icons/hi2';
 
 export default function ChatPage() {
@@ -28,10 +30,26 @@ export default function ChatPage() {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const [showSessions, setShowSessions] = useState(false);
+  const [documents, setDocuments] = useState([]);
+  const [selectedDocIds, setSelectedDocIds] = useState([]);
+  const [showDocFilter, setShowDocFilter] = useState(false);
 
-  useEffect(() => { loadSessions(); }, []);
+  useEffect(() => { loadSessions(); loadDocuments(); }, []);
   useEffect(() => { if (activeSession) loadMessages(activeSession); }, [activeSession]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  const loadDocuments = async () => {
+    try {
+      const res = await documentsAPI.list();
+      setDocuments((res.data || []).filter(d => d.status === 'completed'));
+    } catch { /* silent */ }
+  };
+
+  const toggleDocFilter = (docId) => {
+    setSelectedDocIds(prev =>
+      prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId]
+    );
+  };
 
   const loadSessions = async () => {
     try {
@@ -90,13 +108,13 @@ export default function ChatPage() {
 
     try {
       setMessages((prev) => [...prev, { role: 'assistant', content: '', sources: null, id: streamingMsgId }]);
-      for await (const event of chatAPI.askStream(sessionId, q)) {
+      for await (const event of chatAPI.askStream(sessionId, q, selectedDocIds.length > 0 ? selectedDocIds : null)) {
         if (event.type === 'sources') { sources = event.sources || []; }
         else if (event.type === 'token') {
           fullAnswer += event.content;
           setMessages((prev) => prev.map((m) => m.id === streamingMsgId ? { ...m, content: fullAnswer } : m));
         } else if (event.type === 'done') {
-          setMessages((prev) => prev.map((m) => m.id === streamingMsgId ? { ...m, content: fullAnswer || event.content, sources: { documents: sources } } : m));
+          setMessages((prev) => prev.map((m) => m.id === streamingMsgId ? { ...m, content: fullAnswer || event.content, sources: { documents: sources }, confidence_score: event.confidence_score } : m));
         } else if (event.type === 'error') {
           toast.error(event.content || 'AI 응답 오류');
           setMessages((prev) => prev.filter((m) => m.id !== streamingMsgId));
@@ -106,8 +124,8 @@ export default function ChatPage() {
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== streamingMsgId));
       try {
-        const res = await chatAPI.ask(sessionId, q);
-        setMessages((prev) => [...prev, { role: 'assistant', content: res.data.answer, sources: { documents: res.data.sources }, id: res.data.message_id }]);
+        const res = await chatAPI.ask(sessionId, q, selectedDocIds.length > 0 ? selectedDocIds : null);
+        setMessages((prev) => [...prev, { role: 'assistant', content: res.data.answer, sources: { documents: res.data.sources }, confidence_score: res.data.confidence_score, id: res.data.message_id }]);
         loadSessions();
       } catch (fallbackErr) {
         toast.error(fallbackErr.response?.data?.detail || fallbackErr.message || 'AI 답변 생성 실패');
@@ -283,29 +301,80 @@ export default function ChatPage() {
 
         {/* ── 입력 영역 ── */}
         <div className="border-t border-white/[0.04] bg-[#0f0f17] px-4 py-3 sm:px-6 sm:py-4">
-          <form onSubmit={handleAsk} className="max-w-3xl mx-auto">
-            <div className="relative flex items-center">
-              <input
-                ref={inputRef}
-                type="text"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                placeholder="질문을 입력하세요..."
-                className="w-full pl-4 pr-12 py-3 bg-white/[0.04] border border-white/[0.06] rounded-xl text-[14px] text-gray-200 placeholder:text-gray-600 focus:outline-none focus:bg-white/[0.06] focus:border-baikal-500/40 focus:ring-2 focus:ring-baikal-500/10 transition-all duration-200"
-                disabled={loading}
-              />
-              <button
-                type="submit"
-                disabled={loading || !question.trim()}
-                className="absolute right-1.5 p-2 rounded-lg bg-baikal-600 text-white hover:bg-baikal-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
-              >
-                <HiOutlinePaperAirplane className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-center text-[10px] text-gray-600 mt-2 font-medium">
-              BAIKAL AI · 문서 기반 RAG 답변 · 정확하지 않을 수 있습니다
-            </p>
-          </form>
+          <div className="max-w-3xl mx-auto">
+            {/* 문서 필터 패널 */}
+            {showDocFilter && documents.length > 0 && (
+              <div className="mb-2 p-3 bg-white/[0.03] border border-white/[0.06] rounded-xl">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold text-gray-400">검색 범위 선택 (선택 안 하면 전체 문서)</span>
+                  {selectedDocIds.length > 0 && (
+                    <button onClick={() => setSelectedDocIds([])} className="text-[10px] text-gray-500 hover:text-gray-300 flex items-center gap-1">
+                      <HiOutlineXMark className="w-3 h-3" /> 초기화
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                  {documents.map(doc => (
+                    <button
+                      key={doc.id}
+                      onClick={() => toggleDocFilter(doc.id)}
+                      className={`px-2 py-1 rounded-lg text-[11px] flex items-center gap-1 transition-all duration-150 border ${
+                        selectedDocIds.includes(doc.id)
+                          ? 'bg-baikal-600/30 border-baikal-500/50 text-baikal-300'
+                          : 'bg-white/[0.03] border-white/[0.06] text-gray-500 hover:text-gray-300 hover:border-white/[0.1]'
+                      }`}
+                    >
+                      <HiOutlineDocumentText className="w-3 h-3 flex-shrink-0" />
+                      <span className="max-w-[140px] truncate">{doc.filename}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleAsk}>
+              <div className="relative flex items-center">
+                {documents.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDocFilter(v => !v)}
+                    className={`absolute left-2 p-1.5 rounded-lg transition-all duration-200 ${
+                      selectedDocIds.length > 0
+                        ? 'text-baikal-400 bg-baikal-600/20'
+                        : 'text-gray-600 hover:text-gray-400 hover:bg-white/[0.04]'
+                    }`}
+                    title="문서 필터"
+                  >
+                    <HiOutlineFunnel className="w-3.5 h-3.5" />
+                    {selectedDocIds.length > 0 && (
+                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-baikal-600 text-white text-[8px] rounded-full flex items-center justify-center font-bold">
+                        {selectedDocIds.length}
+                      </span>
+                    )}
+                  </button>
+                )}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="질문을 입력하세요..."
+                  className={`w-full ${documents.length > 0 ? 'pl-9' : 'pl-4'} pr-12 py-3 bg-white/[0.04] border border-white/[0.06] rounded-xl text-[14px] text-gray-200 placeholder:text-gray-600 focus:outline-none focus:bg-white/[0.06] focus:border-baikal-500/40 focus:ring-2 focus:ring-baikal-500/10 transition-all duration-200`}
+                  disabled={loading}
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !question.trim()}
+                  className="absolute right-1.5 p-2 rounded-lg bg-baikal-600 text-white hover:bg-baikal-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  <HiOutlinePaperAirplane className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-center text-[10px] text-gray-600 mt-2 font-medium">
+                BAIKAL AI · 문서 기반 RAG 답변 · 정확하지 않을 수 있습니다
+              </p>
+            </form>
+          </div>
         </div>
       </div>
     </div>

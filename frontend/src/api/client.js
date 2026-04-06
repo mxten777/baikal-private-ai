@@ -115,12 +115,12 @@ export const chatAPI = {
   createSession: (title) =>
     client.post('/chat/sessions', { title: title || '새 대화' }),
   messages: (sessionId) => client.get(`/chat/sessions/${sessionId}/messages`),
-  ask: (sessionId, question) =>
-    client.post('/chat/ask', { session_id: sessionId, question }),
+  ask: (sessionId, question, documentIds = null) =>
+    client.post('/chat/ask', { session_id: sessionId, question, document_ids: documentIds }),
   deleteSession: (id) => client.delete(`/chat/sessions/${id}`),
 
   // 스트리밍 질문응답
-  askStream: async function* (sessionId, question) {
+  askStream: async function* (sessionId, question, documentIds = null) {
     // 토큰 갱신 후 fetch 헬퍼 (SSE는 Axios 인터셉터 우회하므로 직접 처리)
     const fetchWithAuth = async () => {
       const token = localStorage.getItem('access_token');
@@ -130,7 +130,7 @@ export const chatAPI = {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ session_id: sessionId, question }),
+        body: JSON.stringify({ session_id: sessionId, question, document_ids: documentIds }),
       });
     };
 

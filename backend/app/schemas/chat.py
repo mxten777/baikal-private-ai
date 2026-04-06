@@ -34,9 +34,11 @@ class ChatMessageResponse(BaseModel):
 class AskRequest(BaseModel):
     session_id: str
     question: str
+    document_ids: Optional[List[str]] = None  # None = 전체 문서
 
 
 class AskResponse(BaseModel):
     answer: str
     sources: List[dict]
     message_id: str
+    confidence_score: Optional[float] = None
