@@ -131,10 +131,11 @@ async def retrieve_relevant_chunks(
     candidate_k = min(top_k * 3, 20)
 
     # 권한 필터: is_public=true OR allowed_roles에 user_role 포함
+    # jsonb ? text : 배열 원소 존재 여부 확인
     doc_filter = """
         AND (d.is_public = true
              OR d.allowed_roles IS NULL
-             OR d.allowed_roles::jsonb @> to_jsonb(:user_role::text))
+             OR d.allowed_roles::jsonb ? :user_role)
     """
     id_filter = ""
     params: dict = {"embedding": embedding_str, "top_k": candidate_k, "user_role": user_role}
