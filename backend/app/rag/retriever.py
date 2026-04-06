@@ -173,6 +173,10 @@ async def retrieve_relevant_chunks(
     # 6단계: MMR Reranking으로 다양하고 관련성 높은 top_k 선택
     final_results = _mmr_rerank(candidates, top_k)
 
+    # 7단계: MMR 후 최종 점수 하한 필터 (관련 없는 청크 제거)
+    MIN_HYBRID_SCORE = 0.45
+    final_results = [r for r in final_results if r["hybrid_score"] >= MIN_HYBRID_SCORE]
+
     # 노출용 점수는 hybrid_score 사용
     for r in final_results:
         r["score"] = r["hybrid_score"]

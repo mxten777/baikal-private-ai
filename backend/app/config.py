@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 500
     CHUNK_OVERLAP: int = 50
     TOP_K: int = 5
-    SIMILARITY_THRESHOLD: float = 0.3
+    SIMILARITY_THRESHOLD: float = 0.50
     EMBEDDING_DIMENSION: int = 1024
 
     @model_validator(mode="after")
