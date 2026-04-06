@@ -30,22 +30,51 @@ def extract_text(filepath: str, file_type: str) -> str:
 
 
 def extract_pdf(filepath: str) -> str:
-    """PDF에서 텍스트 추출"""
+    """PDF에서 텍스트 추출 (표 구조 포함)"""
     try:
-        from PyPDF2 import PdfReader
+        import pdfplumber
     except ImportError:
-        raise ImportError("PyPDF2가 설치되지 않았습니다: pip install PyPDF2")
+        raise ImportError("pdfplumber가 설치되지 않았습니다: pip install pdfplumber")
 
-    reader = PdfReader(filepath)
     text_parts = []
-    for i, page in enumerate(reader.pages):
-        try:
-            page_text = page.extract_text()
-            if page_text:
-                text_parts.append(page_text)
-        except Exception as e:
-            logger.warning(f"PDF 페이지 {i + 1} 추출 실패: {e}")
-            continue
+    with pdfplumber.open(filepath) as pdf:
+        for i, page in enumerate(pdf.pages):
+            try:
+                page_text_parts = []
+
+                # 표 추출 (셀 단위로 탭 구분)
+                tables = page.extract_tables()
+                table_bboxes = [t.bbox for t in page.find_tables()] if tables else []
+
+                for table in tables:
+                    rows = []
+                    for row in table:
+                        cells = [str(cell).strip() if cell is not None else "" for cell in row]
+                        rows.append("\t".join(cells))
+                    page_text_parts.append("\n".join(rows))
+
+                # 표 영역 제외한 일반 텍스트 추출
+                if table_bboxes:
+                    # 표가 있으면 표 제외 영역 텍스트만
+                    plain = page.filter(
+                        lambda obj: obj["object_type"] == "char" and not any(
+                            obj["x0"] >= bbox[0] and obj["x1"] <= bbox[2]
+                            and obj["top"] >= bbox[1] and obj["bottom"] <= bbox[3]
+                            for bbox in table_bboxes
+                        )
+                    ).extract_text()
+                else:
+                    plain = page.extract_text()
+
+                if plain and plain.strip():
+                    page_text_parts.insert(0, plain.strip())
+
+                if page_text_parts:
+                    text_parts.append("\n".join(page_text_parts))
+
+            except Exception as e:
+                logger.warning(f"PDF 페이지 {i + 1} 추출 실패: {e}")
+                continue
 
     if not text_parts:
         logger.warning(f"PDF에서 텍스트를 추출할 수 없습니다 (이미지 PDF일 수 있음): {filepath}")
