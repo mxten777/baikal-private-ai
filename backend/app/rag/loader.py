@@ -30,7 +30,10 @@ def extract_text(filepath: str, file_type: str) -> str:
 
 
 def extract_pdf(filepath: str) -> str:
-    """PDF에서 텍스트 추출 (표 구조 포함)"""
+    """PDF에서 텍스트 추출 (표 구조 포함).
+    pdfplumber로 텍스트 추출 시도 후, 추출된 텍스트가 너무 짧으면
+    OCR(Tesseract)로 재시도.
+    """
     try:
         import pdfplumber
     except ImportError:
@@ -76,10 +79,53 @@ def extract_pdf(filepath: str) -> str:
                 logger.warning(f"PDF 페이지 {i + 1} 추출 실패: {e}")
                 continue
 
-    if not text_parts:
+    result = "\n\n".join(text_parts)
+
+    # 텍스트가 너무 짧으면 이미지 PDF로 판단 → OCR 시도
+    MIN_TEXT_PER_PAGE = 30
+    with pdfplumber.open(filepath) as pdf:
+        page_count = len(pdf.pages)
+
+    if len(result.strip()) < MIN_TEXT_PER_PAGE * max(page_count, 1):
+        logger.info(f"텍스트 부족 ({len(result.strip())}자, {page_count}페이지) → OCR 시도: {filepath}")
+        ocr_text = _extract_pdf_ocr(filepath)
+        if ocr_text and len(ocr_text.strip()) > len(result.strip()):
+            logger.info(f"OCR 텍스트 채택: {len(ocr_text)}자")
+            return ocr_text
+
+    if not result.strip():
         logger.warning(f"PDF에서 텍스트를 추출할 수 없습니다 (이미지 PDF일 수 있음): {filepath}")
 
-    return "\n\n".join(text_parts)
+    return result
+
+
+def _extract_pdf_ocr(filepath: str) -> str:
+    """Tesseract OCR로 PDF에서 텍스트 추출.
+    pdf2image로 페이지를 이미지로 변환 후 pytesseract로 OCR.
+    한국어(kor) + 영어(eng) 동시 인식.
+    """
+    try:
+        from pdf2image import convert_from_path
+        import pytesseract
+    except ImportError as e:
+        logger.warning(f"OCR 패키지 미설치: {e}")
+        return ""
+
+    try:
+        pages = convert_from_path(filepath, dpi=200)
+        text_parts = []
+        for i, page_img in enumerate(pages):
+            try:
+                text = pytesseract.image_to_string(page_img, lang="kor+eng")
+                if text.strip():
+                    text_parts.append(text.strip())
+            except Exception as e:
+                logger.warning(f"OCR 페이지 {i + 1} 실패: {e}")
+                continue
+        return "\n\n".join(text_parts)
+    except Exception as e:
+        logger.warning(f"OCR 처리 실패: {filepath} - {e}")
+        return ""
 
 
 def extract_docx(filepath: str) -> str:
