@@ -67,11 +67,11 @@
 
 ### 🟡 단기 개선 (코드 수정 수준)
 
-- [ ] **Cross-encoder Reranking 추가**
-  - 모델: `cross-encoder/ms-marco-MiniLM-L-6-v2` (로컬 실행 가능)
-  - MMR 대비 검색 정확도 30~40% 향상 예상
-  - Dify 동급 수준으로 도달 가능
-  - 추가 지연: ~0.5초 (경량 모델)
+- [x] **Cross-encoder Reranking 추가** `(커밋 예정)` (2026-04-06)
+  - 모델: `cross-encoder/ms-marco-MiniLM-L-6-v2` (Docker 이미지에 포함, 폐쇄망 지원)
+  - 파이프라인: 벡터+BM25 → MMR → **Cross-encoder 정밀 재정렬** → top-K
+  - Cross-encoder 실패 시 hybrid_score 순으로 자동 fallback
+  - `@lru_cache` 싱글턴으로 모델 1회만 로드
 
 - [ ] **문서별 채팅 필터**
   - 특정 문서만 대상으로 질문하는 기능
