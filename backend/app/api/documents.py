@@ -2,8 +2,9 @@
 Documents API - 문서 관리
 """
 import asyncio
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks
+import json
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks, Body
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -106,3 +107,33 @@ async def remove_document(
     success = await delete_document(document_id, db)
     if not success:
         raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다")
+
+
+@router.patch("/{document_id}/permissions")
+async def update_document_permissions(
+    document_id: str,
+    is_public: Optional[bool] = Body(None),
+    allowed_roles: Optional[List[str]] = Body(None),
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """문서 접근 권한 설정 (Admin) — is_public / allowed_roles"""
+    result = await db.execute(select(Document).where(Document.id == document_id))
+    doc = result.scalar_one_or_none()
+    if doc is None:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다")
+
+    if is_public is not None:
+        doc.is_public = is_public
+    if allowed_roles is not None:
+        valid_roles = [r for r in allowed_roles if r in ("admin", "manager", "user")]
+        doc.allowed_roles = valid_roles if valid_roles else None
+
+    await db.commit()
+    await db.refresh(doc)
+    return {
+        "id": doc.id,
+        "filename": doc.filename,
+        "is_public": doc.is_public,
+        "allowed_roles": doc.allowed_roles,
+    }

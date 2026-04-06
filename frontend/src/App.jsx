@@ -14,6 +14,7 @@ import DocumentsPage from './pages/DocumentsPage';
 import SearchPage from './pages/SearchPage';
 import UsersPage from './pages/admin/UsersPage';
 import AdminDocumentsPage from './pages/admin/AdminDocumentsPage';
+import SettingsPage from './pages/admin/SettingsPage';
 
 export default function App() {
   return (
@@ -59,6 +60,14 @@ export default function App() {
               element={
                 <ProtectedRoute requireAdmin>
                   <AdminDocumentsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/settings"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <SettingsPage />
                 </ProtectedRoute>
               }
             />

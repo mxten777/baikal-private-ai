@@ -47,7 +47,7 @@ async def create_user(
     user = User(
         username=request.username,
         password_hash=hash_password(request.password),
-        role=request.role if request.role in ("admin", "user") else "user",
+        role=request.role if request.role in ("admin", "manager", "user") else "user",
     )
     db.add(user)
     await db.commit()
@@ -68,7 +68,7 @@ async def update_user(
     if user is None:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
 
-    if request.role is not None and request.role in ("admin", "user"):
+    if request.role is not None and request.role in ("admin", "manager", "user"):
         user.role = request.role
     if request.is_active is not None:
         user.is_active = request.is_active

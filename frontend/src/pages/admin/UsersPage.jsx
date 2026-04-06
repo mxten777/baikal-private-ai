@@ -44,7 +44,9 @@ export default function UsersPage() {
   };
 
   const handleToggleRole = async (user) => {
-    const newRole = user.role === 'admin' ? 'user' : 'admin';
+    // admin → manager → user → admin 순환
+    const cycle = { admin: 'manager', manager: 'user', user: 'admin' };
+    const newRole = cycle[user.role] || 'user';
     try { await usersAPI.update(user.id, { role: newRole }); toast.success(`권한 변경: ${newRole}`); loadUsers(); }
     catch { toast.error('권한 변경 실패'); }
   };
@@ -57,6 +59,7 @@ export default function UsersPage() {
   const stats = {
     total: users.length,
     admins: users.filter((u) => u.role === 'admin').length,
+    managers: users.filter((u) => u.role === 'manager').length,
     active: users.filter((u) => u.is_active).length,
   };
 
@@ -86,6 +89,7 @@ export default function UsersPage() {
           {[
             { label: '전체 사용자', value: stats.total, icon: HiOutlineUserGroup, gradient: 'from-baikal-600 to-blue-600' },
             { label: '관리자', value: stats.admins, icon: HiOutlineShieldCheck, gradient: 'from-purple-600 to-fuchsia-600' },
+            { label: '매니저', value: stats.managers, icon: HiOutlineUserGroup, gradient: 'from-amber-500 to-orange-500' },
             { label: '활성 사용자', value: stats.active, icon: HiOutlineUser, gradient: 'from-emerald-600 to-teal-600' },
           ].map((stat) => (
             <div key={stat.label} className="bg-white/[0.03] rounded-xl border border-white/[0.06] p-4 hover:bg-white/[0.04] transition-all duration-150">
@@ -117,11 +121,11 @@ export default function UsersPage() {
               <div className="flex-1">
                 <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-[0.1em] mb-1.5">비밀번호</label>
                 <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full px-3.5 py-2.5 bg-white/[0.03] border border-white/[0.06] rounded-lg text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-baikal-500/40 focus:ring-1 focus:ring-baikal-500/20 transition-all" placeholder="비밀번호" />
-              </div>
-              <div className="w-full sm:w-32">
+              </div>              <div className="w-full sm:w-36">
                 <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-[0.1em] mb-1.5">권한</label>
                 <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="w-full px-3.5 py-2.5 bg-white/[0.03] border border-white/[0.06] rounded-lg text-sm text-gray-200 focus:outline-none focus:border-baikal-500/40 focus:ring-1 focus:ring-baikal-500/20 transition-all">
                   <option value="user">사용자</option>
+                  <option value="manager">매니저</option>
                   <option value="admin">관리자</option>
                 </select>
               </div>
@@ -169,8 +173,14 @@ export default function UsersPage() {
                     </td>
                     <td className="px-4 sm:px-6 py-4">
                       <button onClick={() => handleToggleRole(user)} className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
-                        user.role === 'admin' ? 'bg-purple-500/15 text-purple-400 hover:bg-purple-500/25' : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08]'
-                      }`}>{user.role === 'admin' ? '관리자' : '사용자'}</button>
+                        user.role === 'admin'
+                          ? 'bg-purple-500/15 text-purple-400 hover:bg-purple-500/25'
+                          : user.role === 'manager'
+                          ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25'
+                          : 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08]'
+                      }`}>
+                        {user.role === 'admin' ? '관리자' : user.role === 'manager' ? '매니저' : '사용자'}
+                      </button>
                     </td>
                     <td className="px-4 sm:px-6 py-4">
                       <button onClick={() => handleToggleActive(user)} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${

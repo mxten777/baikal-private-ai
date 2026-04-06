@@ -107,6 +107,7 @@ export const documentsAPI = {
   download: (id) =>
     client.get(`/documents/${id}/download`, { responseType: 'blob' }),
   delete: (id) => client.delete(`/documents/${id}`),
+  updatePermissions: (id, data) => client.patch(`/documents/${id}/permissions`, data),
 };
 
 // ---- Chat API ----
@@ -192,6 +193,14 @@ export const chatAPI = {
 // ---- Search API ----
 export const searchAPI = {
   search: (query, mode = 'hybrid') => client.get('/search', { params: { q: query, mode } }),
+};
+
+// ---- Admin API ----
+export const adminAPI = {
+  listModels: () => client.get('/admin/models'),
+  activateModel: (modelName) => client.post(`/admin/models/activate?model_name=${encodeURIComponent(modelName)}`),
+  queryLogs: (skip = 0, limit = 50) => client.get('/admin/query-logs', { params: { skip, limit } }),
+  queryLogStats: () => client.get('/admin/query-logs/stats'),
 };
 
 export default client;

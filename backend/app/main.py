@@ -11,7 +11,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 from app.config import get_settings
 from app.database import init_db, async_session
-from app.api import auth, users, documents, chat, search
+from app.api import auth, users, documents, chat, search, admin
 from app.services.auth_service import create_default_admin
 from app.core.limits import limiter
 
@@ -119,6 +119,7 @@ app.include_router(users.router)
 app.include_router(documents.router)
 app.include_router(chat.router)
 app.include_router(search.router)
+app.include_router(admin.router)
 
 
 @app.get("/api/health")

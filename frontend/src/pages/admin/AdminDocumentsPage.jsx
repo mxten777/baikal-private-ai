@@ -13,6 +13,10 @@ import {
   HiOutlineCheckCircle,
   HiOutlineClock,
   HiOutlineExclamationTriangle,
+  HiOutlineLockClosed,
+  HiOutlineLockOpen,
+  HiOutlineShieldCheck,
+  HiOutlineXMark,
 } from 'react-icons/hi2';
 
 const STATUS_MAP = {
@@ -22,6 +26,9 @@ const STATUS_MAP = {
   failed: { label: '실패', dot: 'bg-red-400', bg: 'bg-red-500/15 text-red-400' },
 };
 
+const ROLE_LABELS = { admin: '관리자', manager: '매니저', user: '사용자' };
+const ALL_ROLES = ['admin', 'manager', 'user'];
+
 function formatBytes(bytes) {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -30,9 +37,110 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+function PermissionModal({ doc, onClose, onSaved }) {
+  const [isPublic, setIsPublic] = useState(doc.is_public ?? true);
+  const [allowedRoles, setAllowedRoles] = useState(doc.allowed_roles ?? ['admin', 'manager', 'user']);
+  const [saving, setSaving] = useState(false);
+
+  const toggleRole = (role) => {
+    setAllowedRoles(prev =>
+      prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
+    );
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await documentsAPI.updatePermissions(doc.id, {
+        is_public: isPublic,
+        allowed_roles: isPublic ? null : allowedRoles,
+      });
+      toast.success('권한 설정이 저장되었습니다');
+      onSaved();
+      onClose();
+    } catch {
+      toast.error('권한 저장 실패');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-[#1a1a2e] border border-white/[0.08] rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-white/[0.06]">
+          <div className="flex items-center gap-2">
+            <HiOutlineShieldCheck className="w-4 h-4 text-baikal-400" />
+            <span className="text-[14px] font-bold text-gray-200">접근 권한 설정</span>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-gray-500 hover:text-gray-300 rounded-lg hover:bg-white/[0.05]">
+            <HiOutlineXMark className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <p className="text-[12px] text-gray-400 truncate font-medium">{doc.filename}</p>
+
+          {/* 공개 여부 */}
+          <div>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.1em] mb-2">접근 범위</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsPublic(true)}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[12px] font-semibold border transition-all ${isPublic ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400' : 'bg-white/[0.03] border-white/[0.06] text-gray-500 hover:text-gray-300'}`}
+              >
+                <HiOutlineLockOpen className="w-3.5 h-3.5" /> 전체 공개
+              </button>
+              <button
+                onClick={() => setIsPublic(false)}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[12px] font-semibold border transition-all ${!isPublic ? 'bg-amber-500/15 border-amber-500/40 text-amber-400' : 'bg-white/[0.03] border-white/[0.06] text-gray-500 hover:text-gray-300'}`}
+              >
+                <HiOutlineLockClosed className="w-3.5 h-3.5" /> 역할 제한
+              </button>
+            </div>
+          </div>
+
+          {/* 역할 선택 */}
+          {!isPublic && (
+            <div>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.1em] mb-2">허용 역할</p>
+              <div className="flex gap-2">
+                {ALL_ROLES.map(role => (
+                  <button
+                    key={role}
+                    onClick={() => toggleRole(role)}
+                    className={`flex-1 py-2 rounded-lg text-[11px] font-semibold border transition-all ${
+                      allowedRoles.includes(role)
+                        ? 'bg-baikal-600/30 border-baikal-500/50 text-baikal-300'
+                        : 'bg-white/[0.02] border-white/[0.05] text-gray-600 hover:text-gray-400'
+                    }`}
+                  >
+                    {ROLE_LABELS[role]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 pb-5">
+          <button
+            onClick={handleSave}
+            disabled={saving || (!isPublic && allowedRoles.length === 0)}
+            className="w-full py-2.5 rounded-lg bg-baikal-600 text-white text-[13px] font-semibold hover:bg-baikal-500 disabled:opacity-40 transition-all"
+          >
+            {saving ? '저장 중...' : '저장'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDocumentsPage() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [permissionDoc, setPermissionDoc] = useState(null);
 
   const loadDocuments = useCallback(async () => {
     try { const res = await documentsAPI.list(); setDocuments(res.data); }
@@ -128,6 +236,7 @@ export default function AdminDocumentsPage() {
                   <th className="px-4 sm:px-6 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-[0.1em] hidden sm:table-cell">형식</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-[0.1em] hidden sm:table-cell">크기</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-[0.1em]">상태</th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-[0.1em] hidden md:table-cell">접근권한</th>
                   <th className="px-4 sm:px-6 py-3 text-left text-[10px] font-bold text-gray-500 uppercase tracking-[0.1em] hidden md:table-cell">업로드일</th>
                   <th className="px-4 sm:px-6 py-3"></th>
                 </tr>
@@ -135,6 +244,8 @@ export default function AdminDocumentsPage() {
               <tbody className="divide-y divide-white/[0.03]">
                 {documents.map((doc) => {
                   const status = STATUS_MAP[doc.status] || STATUS_MAP.uploading;
+                  const isPublic = doc.is_public ?? true;
+                  const roles = doc.allowed_roles ?? [];
                   return (
                     <tr key={doc.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="px-4 sm:px-6 py-4">
@@ -156,9 +267,27 @@ export default function AdminDocumentsPage() {
                         </span>
                         {doc.error_message && <p className="text-[10px] text-red-400 mt-1 max-w-xs truncate">{doc.error_message}</p>}
                       </td>
+                      <td className="px-4 sm:px-6 py-4 hidden md:table-cell">
+                        {isPublic ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-emerald-500/10 text-emerald-400">
+                            <HiOutlineLockOpen className="w-3 h-3" /> 전체
+                          </span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {roles.map(r => (
+                              <span key={r} className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-baikal-600/20 text-baikal-300">
+                                {ROLE_LABELS[r] || r}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-4 sm:px-6 py-4 text-[13px] text-gray-500 hidden md:table-cell">{new Date(doc.created_at).toLocaleDateString('ko-KR')}</td>
                       <td className="px-4 sm:px-6 py-4">
                         <div className="flex gap-1">
+                          <button onClick={() => setPermissionDoc(doc)} className="p-2 text-gray-600 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all" title="권한 설정">
+                            <HiOutlineShieldCheck className="w-4 h-4" />
+                          </button>
                           <button onClick={() => handleDownload(doc)} className="p-2 text-gray-600 hover:text-baikal-400 hover:bg-white/[0.04] rounded-lg transition-all" title="다운로드">
                             <HiOutlineArrowDownTray className="w-4 h-4" />
                           </button>
@@ -176,6 +305,14 @@ export default function AdminDocumentsPage() {
           )}
         </div>
       </div>
+
+      {permissionDoc && (
+        <PermissionModal
+          doc={permissionDoc}
+          onClose={() => setPermissionDoc(null)}
+          onSaved={loadDocuments}
+        />
+      )}
     </div>
   );
 }

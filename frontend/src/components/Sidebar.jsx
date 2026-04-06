@@ -14,6 +14,7 @@ import {
   HiOutlineFolderOpen,
   HiOutlineArrowRightOnRectangle,
   HiOutlineKey,
+  HiOutlineCog6Tooth,
 } from 'react-icons/hi2';
 
 function NavItem({ to, icon: Icon, label }) {
@@ -89,6 +90,7 @@ export default function Sidebar({ onClose }) {
             </div>
             <NavItem to="/admin/users" icon={HiOutlineUsers} label="사용자 관리" />
             <NavItem to="/admin/documents" icon={HiOutlineFolderOpen} label="문서 관리" />
+            <NavItem to="/admin/settings" icon={HiOutlineCog6Tooth} label="시스템 설정" />
           </>
         )}
       </nav>
@@ -104,7 +106,9 @@ export default function Sidebar({ onClose }) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-medium text-gray-300 truncate leading-tight">{user?.username}</p>
-            <p className="text-[9px] text-gray-600 mt-0.5">{user?.role === 'admin' ? '관리자' : '사용자'}</p>
+            <p className="text-[9px] text-gray-600 mt-0.5">
+              {user?.role === 'admin' ? '관리자' : user?.role === 'manager' ? '매니저' : '사용자'}
+            </p>
           </div>
           <button
             onClick={() => setPwModalOpen(true)}
