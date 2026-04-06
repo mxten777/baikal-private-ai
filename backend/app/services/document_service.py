@@ -168,12 +168,13 @@ async def process_document_async(document_id: str):
                 logger.error(f"임베딩 실패: {doc.filename} - {e}")
                 return
 
-            # 4. DB 저장
+            # 4. DB 저장 (null 바이트 제거 - PostgreSQL UTF-8 거부 방지)
             for i, (chunk_content, embedding) in enumerate(zip(chunks, embeddings)):
+                clean_content = chunk_content.replace('\x00', '').replace('\uf000', '')
                 chunk = DocumentChunk(
                     document_id=document_id,
                     chunk_index=i,
-                    content=chunk_content,
+                    content=clean_content,
                     embedding=embedding,
                 )
                 db.add(chunk)
@@ -185,9 +186,13 @@ async def process_document_async(document_id: str):
         except Exception as e:
             logger.error(f"문서 처리 실패: {document_id} - {e}", exc_info=True)
             try:
-                doc.status = "failed"
-                doc.error_message = f"처리 중 오류: {str(e)[:300]}"
-                await db.commit()
+                await db.rollback()
+                result2 = await db.execute(select(Document).where(Document.id == document_id))
+                doc2 = result2.scalar_one_or_none()
+                if doc2:
+                    doc2.status = "failed"
+                    doc2.error_message = f"처리 중 오류: {str(e)[:300]}"
+                    await db.commit()
             except Exception:
                 logger.error("상태 업데이트 실패")
 

@@ -1,7 +1,7 @@
 /**
  * DocumentsPage - 프리미엄 문서 관리
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { documentsAPI } from '../api/client';
 import DocumentUpload from '../components/DocumentUpload';
 import toast from 'react-hot-toast';
@@ -12,14 +12,33 @@ import {
   HiOutlineCircleStack,
   HiOutlineCheckCircle,
   HiOutlineClock,
+  HiOutlineTrash,
+  HiOutlineExclamationTriangle,
 } from 'react-icons/hi2';
 
 const STATUS_MAP = {
   uploading: { label: '업로드중', dot: 'bg-amber-400', bg: 'bg-amber-500/15 text-amber-400' },
   processing: { label: '분석중', dot: 'bg-blue-400', bg: 'bg-blue-500/15 text-blue-400' },
+  processing_stuck: { label: '응답없음', dot: 'bg-orange-400', bg: 'bg-orange-500/15 text-orange-400' },
   completed: { label: '완료', dot: 'bg-emerald-400', bg: 'bg-emerald-500/15 text-emerald-400' },
   failed: { label: '실패', dot: 'bg-red-400', bg: 'bg-red-500/15 text-red-400' },
 };
+
+const STUCK_THRESHOLD_MS = 5 * 60 * 1000; // 5분
+
+function getElapsedLabel(createdAt) {
+  const elapsed = Date.now() - new Date(createdAt).getTime();
+  const secs = Math.floor(elapsed / 1000);
+  if (secs < 60) return `${secs}초 경과`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}분 경과`;
+  return `${Math.floor(mins / 60)}시간 경과`;
+}
+
+function isStuck(doc) {
+  if (doc.status !== 'processing' && doc.status !== 'uploading') return false;
+  return Date.now() - new Date(doc.created_at).getTime() > STUCK_THRESHOLD_MS;
+}
 
 function formatBytes(bytes) {
   if (bytes === 0) return '0 B';
@@ -32,6 +51,7 @@ function formatBytes(bytes) {
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
 
   const loadDocuments = useCallback(async () => {
     try { const res = await documentsAPI.list(); setDocuments(res.data); }
@@ -41,12 +61,30 @@ export default function DocumentsPage() {
 
   useEffect(() => { loadDocuments(); }, [loadDocuments]);
 
+  // 폴링: 처리 중 문서 있으면 3초마다 새로고침
   useEffect(() => {
     const processing = documents.filter((d) => d.status === 'uploading' || d.status === 'processing');
     if (processing.length === 0) return;
     const interval = setInterval(() => { loadDocuments(); }, 3000);
     return () => clearInterval(interval);
   }, [documents, loadDocuments]);
+
+  // 경과 시간 표시 갱신 (1초마다)
+  useEffect(() => {
+    const hasActive = documents.some((d) => d.status === 'processing' || d.status === 'uploading');
+    if (!hasActive) return;
+    const t = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [documents]);
+
+  const handleDelete = async (doc) => {
+    if (!window.confirm(`"${doc.filename}" 를 삭제하시겠습니까?`)) return;
+    try {
+      await documentsAPI.delete(doc.id);
+      toast.success('문서가 삭제되었습니다');
+      loadDocuments();
+    } catch { toast.error('삭제 실패'); }
+  };
 
   const handleDownload = async (doc) => {
     try {
@@ -138,7 +176,6 @@ export default function DocumentsPage() {
               </thead>
               <tbody className="divide-y divide-white/[0.03]">
                 {documents.map((doc) => {
-                  const status = STATUS_MAP[doc.status] || STATUS_MAP.uploading;
                   return (
                     <tr key={doc.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="px-4 sm:px-6 py-4">
@@ -154,21 +191,44 @@ export default function DocumentsPage() {
                       </td>
                       <td className="px-4 sm:px-6 py-4 text-[13px] text-gray-500 hidden sm:table-cell">{formatBytes(doc.file_size)}</td>
                       <td className="px-4 sm:px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold ${status.bg}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${status.dot} ${doc.status === 'processing' ? 'animate-pulse' : ''}`} />
-                          {status.label}
-                        </span>
-                        {doc.status === 'failed' && doc.error_message && (
-                          <p className="text-[10px] text-red-400 mt-1 max-w-[200px] truncate">{doc.error_message}</p>
-                        )}
+                        {(() => {
+                          const stuck = isStuck(doc);
+                          const displayStatus = stuck ? STATUS_MAP.processing_stuck : (STATUS_MAP[doc.status] || STATUS_MAP.uploading);
+                          const isActive = doc.status === 'processing' || doc.status === 'uploading';
+                          return (
+                            <div>
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold ${displayStatus.bg}`}>
+                                {stuck
+                                  ? <HiOutlineExclamationTriangle className="w-3 h-3" />
+                                  : <span className={`w-1.5 h-1.5 rounded-full ${displayStatus.dot} ${isActive && !stuck ? 'animate-pulse' : ''}`} />}
+                                {displayStatus.label}
+                              </span>
+                              {isActive && (
+                                <p className={`text-[10px] mt-1 ${stuck ? 'text-orange-400 font-semibold' : 'text-gray-500'}`}>
+                                  {stuck ? '⚠ 응답 없음 — 삭제 후 재업로드 하세요' : getElapsedLabel(doc.created_at)}
+                                </p>
+                              )}
+                              {doc.status === 'failed' && doc.error_message && (
+                                <p className="text-[10px] text-red-400 mt-1 max-w-[200px] truncate" title={doc.error_message}>{doc.error_message}</p>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 sm:px-6 py-4 text-[13px] text-gray-500 hidden md:table-cell">{new Date(doc.created_at).toLocaleDateString('ko-KR')}</td>
                       <td className="px-4 sm:px-6 py-4">
-                        {doc.status === 'completed' && (
-                          <button onClick={() => handleDownload(doc)} className="p-2 text-gray-600 hover:text-baikal-400 hover:bg-white/[0.04] rounded-lg transition-all" title="다운로드">
-                            <HiOutlineArrowDownTray className="w-4 h-4" />
-                          </button>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {doc.status === 'completed' && (
+                            <button onClick={() => handleDownload(doc)} className="p-2 text-gray-600 hover:text-baikal-400 hover:bg-white/[0.04] rounded-lg transition-all" title="다운로드">
+                              <HiOutlineArrowDownTray className="w-4 h-4" />
+                            </button>
+                          )}
+                          {(doc.status === 'failed' || isStuck(doc)) && (
+                            <button onClick={() => handleDelete(doc)} className="p-2 text-gray-600 hover:text-red-400 hover:bg-red-500/[0.08] rounded-lg transition-all" title="삭제">
+                              <HiOutlineTrash className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
