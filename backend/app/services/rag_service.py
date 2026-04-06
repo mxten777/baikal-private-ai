@@ -26,7 +26,7 @@ SYSTEM_PROMPT = """당신은 BAIKAL Private AI 시스템의 기업 내부 문서
 8. 답변 마지막에 "📄 출처: [문서명]" 형식으로 참고 문서를 명시하세요.
 9. 질문이 모호하면 어떤 의도인지 되묻되, 가능한 해석이 하나라면 그대로 답변하세요."""
 
-MAX_HISTORY_TURNS = 5  # 컨텍스트에 포함할 최대 대화 턴 수
+MAX_HISTORY_TURNS = 3  # 컨텍스트에 포함할 최대 대화 턴 수 (주제 오염 방지)
 
 
 async def _get_chat_history(session_id: str, db: AsyncSession) -> list[dict]:

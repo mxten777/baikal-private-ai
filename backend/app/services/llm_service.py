@@ -64,7 +64,7 @@ async def call_ollama_chat(prompt: str = "", system_prompt: str = "", messages: 
             "messages": messages,
             "stream": False,
             "options": {
-                "num_ctx": 4096,
+                "num_ctx": 8192,
                 "num_predict": 1024,
                 "temperature": 0.3,
             },
@@ -94,7 +94,7 @@ async def call_ollama_chat_stream(prompt: str = "", system_prompt: str = "", mes
                     "messages": messages,
                     "stream": True,
                     "options": {
-                        "num_ctx": 4096,
+                        "num_ctx": 8192,
                         "num_predict": 1024,
                         "temperature": 0.3,
                     },
