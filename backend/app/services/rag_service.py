@@ -5,7 +5,7 @@ import logging
 import time
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
+from sqlalchemy import select
 from app.models.document import Document, DocumentChunk, ChatSession, ChatMessage, QueryLog
 from app.services.llm_service import call_ollama_chat, call_ollama_chat_stream, call_ollama_embedding
 from app.rag.retriever import retrieve_relevant_chunks
@@ -27,7 +27,7 @@ SYSTEM_PROMPT = """당신은 BAIKAL Private AI 시스템의 기업 내부 문서
 8. 답변 마지막에 "📄 출처: [문서명]" 형식으로 참고 문서를 명시하세요.
 9. 질문이 모호하면 어떤 의도인지 되묻되, 가능한 해석이 하나라면 그대로 답변하세요."""
 
-MAX_HISTORY_TURNS = 3  # 컨텍스트에 포함할 최대 대화 턴 수 (주제 오염 방지)
+MAX_HISTORY_TURNS = settings.MAX_HISTORY_TURNS  # 콘텍스트에 포함할 최대 대화 턴 수 (주제 오염 방지)
 
 
 async def _get_chat_history(session_id: str, db: AsyncSession) -> list[dict]:
@@ -61,39 +61,15 @@ async def ask_question(
     if session is None:
         raise ValueError("채팅 세션을 찾을 수 없습니다")
 
-    # 2. Vector 유사도 검색 (retriever 사용)
-    chunks = await retrieve_relevant_chunks(
+    # 2. RAG 컨텍스트 생성 (_build_rag_context 활용, 중복 로직 제거)
+    context, sources, confidence_score = await _build_rag_context(
         question, db, document_ids=document_ids, user_role=user_role
     )
 
-    # 3. 컨텍스트 생성
-    context_parts = []
-    sources = []
-    seen_docs = set()
-
-    for chunk in chunks:
-        context_parts.append(f"[{chunk['filename']} - 청크 {chunk['chunk_index'] + 1}]\n{chunk['content']}")
-
-        if chunk['document_id'] not in seen_docs:
-            sources.append({
-                "document_id": chunk['document_id'],
-                "filename": chunk['filename'],
-                "relevance_score": chunk['score'],
-                "chunk_id": chunk.get('chunk_id'),
-                "chunk_index": chunk['chunk_index'],
-                "chunk_content": chunk['content'][:300],
-            })
-            seen_docs.add(chunk['document_id'])
-
-    context = "\n\n---\n\n".join(context_parts) if context_parts else "관련 문서를 찾을 수 없습니다."
-
-    # 4. 신뢰도 점수 계산
-    confidence_score = round(sum(c['score'] for c in chunks) / len(chunks), 3) if chunks else 0.0
-
-    # 5. 대화 히스토리 가져오기
+    # 3. 대화 히스토리 가져오기
     history = await _get_chat_history(session_id, db)
 
-    # 6. LLM 메시지 구성 (시스템 + 히스토리 + 현재 질문)
+    # 4. LLM 메시지 구성 (시스템 + 히스토리 + 현재 질문)
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages.extend(history)
     messages.append({

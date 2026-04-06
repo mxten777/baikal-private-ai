@@ -36,6 +36,19 @@ class Settings(BaseSettings):
     TOP_K: int = 5
     SIMILARITY_THRESHOLD: float = 0.50
     EMBEDDING_DIMENSION: int = 1024
+    MIN_HYBRID_SCORE: float = 0.45
+    SEMANTIC_SIMILARITY_THRESHOLD: float = 0.75
+    CROSS_ENCODER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    MAX_HISTORY_TURNS: int = 3
+
+    # LLM Options
+    LLM_NUM_CTX: int = 8192
+    LLM_NUM_PREDICT: int = 1024
+    LLM_TEMPERATURE: float = 0.3
+
+    # OCR
+    OCR_MIN_TEXT_PER_PAGE: int = 30
+    OCR_DPI: int = 200
 
     @model_validator(mode="after")
     def validate_production_secrets(self) -> "Settings":

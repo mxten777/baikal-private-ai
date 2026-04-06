@@ -48,14 +48,8 @@ async def _ollama_request(method: str, path: str, **kwargs) -> httpx.Response:
         raise
 
 
-async def call_ollama_chat(prompt: str = "", system_prompt: str = "", messages: list = None) -> str:
+async def call_ollama_chat(messages: list) -> str:
     """Ollama Chat API 호출"""
-    if messages is None:
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-
     response = await _ollama_request(
         "post",
         "/api/chat",
@@ -64,9 +58,9 @@ async def call_ollama_chat(prompt: str = "", system_prompt: str = "", messages: 
             "messages": messages,
             "stream": False,
             "options": {
-                "num_ctx": 8192,
-                "num_predict": 1024,
-                "temperature": 0.3,
+                "num_ctx": settings.LLM_NUM_CTX,
+                "num_predict": settings.LLM_NUM_PREDICT,
+                "temperature": settings.LLM_TEMPERATURE,
             },
         },
         timeout=300.0,
@@ -75,14 +69,8 @@ async def call_ollama_chat(prompt: str = "", system_prompt: str = "", messages: 
     return data["message"]["content"]
 
 
-async def call_ollama_chat_stream(prompt: str = "", system_prompt: str = "", messages: list = None) -> AsyncGenerator[str, None]:
+async def call_ollama_chat_stream(messages: list) -> AsyncGenerator[str, None]:
     """Ollama Chat API 스트리밍 호출"""
-    if messages is None:
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-
     url = f"{settings.OLLAMA_BASE_URL}/api/chat"
     try:
         async with httpx.AsyncClient(timeout=300.0) as client:
@@ -94,18 +82,17 @@ async def call_ollama_chat_stream(prompt: str = "", system_prompt: str = "", mes
                     "messages": messages,
                     "stream": True,
                     "options": {
-                        "num_ctx": 8192,
-                        "num_predict": 1024,
-                        "temperature": 0.3,
+                        "num_ctx": settings.LLM_NUM_CTX,
+                        "num_predict": settings.LLM_NUM_PREDICT,
+                        "temperature": settings.LLM_TEMPERATURE,
                     },
                 },
             ) as response:
                 response.raise_for_status()
-                import json as _json
                 async for line in response.aiter_lines():
                     if line.strip():
                         try:
-                            data = _json.loads(line)
+                            data = json.loads(line)
                             if "message" in data and "content" in data["message"]:
                                 yield data["message"]["content"]
                             if data.get("done", False):

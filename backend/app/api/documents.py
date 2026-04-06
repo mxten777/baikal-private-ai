@@ -1,8 +1,6 @@
 """
 Documents API - 문서 관리
 """
-import asyncio
-import json
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks, Body
 from fastapi.responses import FileResponse
@@ -65,13 +63,16 @@ async def upload_document(
 async def get_document_status(
     document_id: str,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """문서 처리 상태 조회"""
     result = await db.execute(select(Document).where(Document.id == document_id))
     doc = result.scalar_one_or_none()
     if doc is None:
         raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다")
+    # 소유자 또는 관리자만 조회 가능 (IDOR 방지)
+    if current_user.role != "admin" and doc.uploaded_by != current_user.id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다")
     return doc
 
 

@@ -2,8 +2,10 @@
 Document Loader - 텍스트 추출
 """
 import logging
+from app.config import get_settings
 
 logger = logging.getLogger("baikal.loader")
+settings = get_settings()
 
 
 def extract_text(filepath: str, file_type: str) -> str:
@@ -82,11 +84,10 @@ def extract_pdf(filepath: str) -> str:
     result = "\n\n".join(text_parts)
 
     # 텍스트가 너무 짧으면 이미지 PDF로 판단 → OCR 시도
-    MIN_TEXT_PER_PAGE = 30
     with pdfplumber.open(filepath) as pdf:
         page_count = len(pdf.pages)
 
-    if len(result.strip()) < MIN_TEXT_PER_PAGE * max(page_count, 1):
+    if len(result.strip()) < settings.OCR_MIN_TEXT_PER_PAGE * max(page_count, 1):
         logger.info(f"텍스트 부족 ({len(result.strip())}자, {page_count}페이지) → OCR 시도: {filepath}")
         ocr_text = _extract_pdf_ocr(filepath)
         if ocr_text and len(ocr_text.strip()) > len(result.strip()):
@@ -112,7 +113,7 @@ def _extract_pdf_ocr(filepath: str) -> str:
         return ""
 
     try:
-        pages = convert_from_path(filepath, dpi=200)
+        pages = convert_from_path(filepath, dpi=settings.OCR_DPI)
         text_parts = []
         for i, page_img in enumerate(pages):
             try:

@@ -85,7 +85,7 @@ def _is_table_line(line: str) -> bool:
     return "\t" in line and len(line.split("\t")) >= 3
 
 
-def _split_table_aware(text: str) -> List[str]:
+def split_table_aware(text: str) -> List[str]:
     """표 영역을 행 단위로, 일반 텍스트는 단락 단위로 분리"""
     lines = text.split("\n")
     segments = []  # (is_table: bool, lines: List[str], header: str|None)
@@ -122,7 +122,7 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]
     if not text or not text.strip():
         return []
 
-    segments = _split_table_aware(text.strip())
+    segments = split_table_aware(text.strip())
     chunks = []
 
     for seg_type, seg_lines, header in segments:

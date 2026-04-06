@@ -1,6 +1,7 @@
 """
 Retriever - 하이브리드 검색 (Vector + BM25) + Cross-encoder Reranking
 """
+import asyncio
 import math
 import logging
 from functools import lru_cache
@@ -13,16 +14,14 @@ from app.config import get_settings
 settings = get_settings()
 logger = logging.getLogger("baikal.retriever")
 
-CROSS_ENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-
 
 @lru_cache(maxsize=1)
 def _get_cross_encoder():
     """Cross-encoder 모델 싱글턴 (최초 1회만 로드)"""
     try:
         from sentence_transformers import CrossEncoder
-        model = CrossEncoder(CROSS_ENCODER_MODEL)
-        logger.info(f"Cross-encoder 로드 완료: {CROSS_ENCODER_MODEL}")
+        model = CrossEncoder(settings.CROSS_ENCODER_MODEL)
+        logger.info(f"Cross-encoder 로드 완료: {settings.CROSS_ENCODER_MODEL}")
         return model
     except Exception as e:
         logger.warning(f"Cross-encoder 로드 실패, MMR fallback 사용: {e}")
@@ -210,15 +209,16 @@ async def retrieve_relevant_chunks(
     mmr_results = _mmr_rerank(candidates, min(top_k * 2, len(candidates)))
 
     # 7단계: MMR 후 최종 점수 하한 필터 (관련 없는 청크 제거)
-    MIN_HYBRID_SCORE = 0.45
-    mmr_results = [r for r in mmr_results if r["hybrid_score"] >= MIN_HYBRID_SCORE]
+    mmr_results = [r for r in mmr_results if r["hybrid_score"] >= settings.MIN_HYBRID_SCORE]
 
     # 8단계: Cross-encoder Reranking (MMR 결과를 정밀 재정렬)
     cross_encoder = _get_cross_encoder()
     if cross_encoder is not None and mmr_results:
         try:
             pairs = [[query, r["content"]] for r in mmr_results]
-            ce_scores = cross_encoder.predict(pairs)
+            ce_scores = await asyncio.get_event_loop().run_in_executor(
+                None, cross_encoder.predict, pairs
+            )
             for i, r in enumerate(mmr_results):
                 r["ce_score"] = float(ce_scores[i])
             mmr_results.sort(key=lambda x: x["ce_score"], reverse=True)

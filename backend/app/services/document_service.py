@@ -117,7 +117,7 @@ async def process_document_async(document_id: str):
     from app.rag.chunker import (
         chunk_text, table_chunk_to_nl,
         split_into_paragraphs, semantic_chunk_with_embeddings,
-        _split_table_aware,
+        split_table_aware,
     )
     from app.rag.embedder import generate_embeddings
 
@@ -158,7 +158,7 @@ async def process_document_async(document_id: str):
                 text, settings.CHUNK_SIZE, settings.CHUNK_OVERLAP,
                 generate_embeddings,
                 split_into_paragraphs, semantic_chunk_with_embeddings, chunk_text,
-                _split_table_aware,
+                split_table_aware,
                 doc.filename,
             )
             if not chunks:
@@ -278,7 +278,7 @@ async def _semantic_chunk_document(
             semantic_chunks = semantic_chunk_fn(
                 paragraphs,
                 para_embeddings,
-                similarity_threshold=0.75,
+                similarity_threshold=settings.SEMANTIC_SIMILARITY_THRESHOLD,
                 max_chunk_size=chunk_size,
             )
             # 시맨틱 청킹 결과가 너무 크면 폴백으로 추가 분할
