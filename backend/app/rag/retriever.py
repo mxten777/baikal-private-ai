@@ -223,12 +223,11 @@ async def retrieve_relevant_chunks(
                 r["ce_score"] = float(ce_scores[i])
             mmr_results.sort(key=lambda x: x["ce_score"], reverse=True)
             final_results = mmr_results[:top_k]
-            # 노출용 점수는 ce_score 정규화값 사용
-            max_ce = max(r["ce_score"] for r in final_results) if final_results else 1.0
-            min_ce = min(r["ce_score"] for r in final_results) if final_results else 0.0
-            rng = max_ce - min_ce if max_ce != min_ce else 1.0
+            # 노출용 점수: sigmoid 변환으로 절대 관련도 반영
+            # ce_score는 보통 -10 ~ +10 범위. sigmoid(x) = 1/(1+e^-x)
             for r in final_results:
-                r["score"] = round((r["ce_score"] - min_ce) / rng, 4)
+                import math
+                r["score"] = round(1 / (1 + math.exp(-r["ce_score"])), 4)
             logger.info(
                 f"검색 완료: 후보 {len(candidates)}개 → MMR {len(mmr_results)}개 "
                 f"→ Cross-encoder top{len(final_results)}"

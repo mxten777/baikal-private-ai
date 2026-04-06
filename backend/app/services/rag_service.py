@@ -155,7 +155,14 @@ async def _build_rag_context(
             seen_docs.add(chunk['document_id'])
 
     context = "\n\n---\n\n".join(context_parts) if context_parts else "관련 문서를 찾을 수 없습니다."
-    confidence_score = round(sum(c['score'] for c in chunks) / len(chunks), 3) if chunks else 0.0
+    if chunks:
+        scores = sorted([c['score'] for c in chunks], reverse=True)
+        top_score = scores[0]
+        upper_half = scores[:max(1, len(scores) // 2)]
+        upper_avg = sum(upper_half) / len(upper_half)
+        confidence_score = round(0.6 * top_score + 0.4 * upper_avg, 3)
+    else:
+        confidence_score = 0.0
     return context, sources, confidence_score
 
 
@@ -257,7 +264,10 @@ async def search_documents(query: str, db: AsyncSession, mode: str = "hybrid") -
                         "document_id": chunk['document_id'],
                         "filename": chunk['filename'],
                         "content_snippet": snippet,
+                        "content": content,
                         "score": chunk['score'],
+                        "chunk_id": chunk.get('chunk_id'),
+                        "chunk_index": chunk.get('chunk_index'),
                     })
                     seen.add(chunk['document_id'])
         except Exception as e:
@@ -292,6 +302,7 @@ async def search_documents(query: str, db: AsyncSession, mode: str = "hybrid") -
                     "document_id": doc_id,
                     "filename": filename,
                     "content_snippet": snippet,
+                    "content": content,
                 })
                 seen.add(doc_id)
 
