@@ -79,9 +79,9 @@ export default function ChatMessage({ message }) {
             {message.sources.documents.map((src, idx) => (
               <button
                 key={idx}
-                onClick={() => src.chunk_content ? setPreviewSource(src) : undefined}
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium bg-white/[0.04] text-gray-400 border border-white/[0.06] transition-all duration-150 ${src.chunk_content ? 'hover:bg-white/[0.08] hover:text-gray-200 hover:border-white/[0.12] cursor-pointer' : 'cursor-default'}`}
-                title={src.chunk_content ? '클릭하여 내용 미리보기' : undefined}
+                onClick={() => setPreviewSource(src)}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium bg-white/[0.04] text-gray-400 border border-white/[0.06] transition-all duration-150 hover:bg-white/[0.08] hover:text-gray-200 hover:border-white/[0.12] cursor-pointer"
+                title="클릭하여 내용 미리보기"
               >
                 <HiOutlineDocumentText className="w-3 h-3 text-gray-500" />
                 {src.filename}

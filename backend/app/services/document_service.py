@@ -4,6 +4,7 @@ Document Service - 파일 업로드, 관리, 비동기 처리
 import os
 import uuid
 import logging
+from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.document import Document, DocumentChunk
@@ -113,7 +114,11 @@ async def save_uploaded_file(file, user_id: str, db: AsyncSession) -> Document:
 async def process_document_async(document_id: str):
     """비동기 문서 처리 (백그라운드 태스크)"""
     from app.rag.loader import extract_text
-    from app.rag.chunker import chunk_text
+    from app.rag.chunker import (
+        chunk_text, table_chunk_to_nl,
+        split_into_paragraphs, semantic_chunk_with_embeddings,
+        _split_table_aware,
+    )
     from app.rag.embedder import generate_embeddings
 
     async with async_session() as db:
@@ -148,8 +153,14 @@ async def process_document_async(document_id: str):
                 logger.warning(f"빈 텍스트: {doc.filename}")
                 return
 
-            # 2. 텍스트 청킹
-            chunks = chunk_text(text, settings.CHUNK_SIZE, settings.CHUNK_OVERLAP)
+            # 2. 시맨틱 청킹 (표 영역은 기존 방식 유지)
+            chunks = await _semantic_chunk_document(
+                text, settings.CHUNK_SIZE, settings.CHUNK_OVERLAP,
+                generate_embeddings,
+                split_into_paragraphs, semantic_chunk_with_embeddings, chunk_text,
+                _split_table_aware,
+                doc.filename,
+            )
             if not chunks:
                 doc.status = "failed"
                 doc.error_message = "텍스트 분할 결과가 없습니다."
@@ -159,7 +170,6 @@ async def process_document_async(document_id: str):
             logger.info(f"청킹 완료: {doc.filename} → {len(chunks)} chunks")
 
             # 3. 표 청크 자연어 변환 (임베딩용) — 원본은 content에 보존
-            from app.rag.chunker import table_chunk_to_nl
             nl_texts = [table_chunk_to_nl(c) for c in chunks]
 
             # 4. 임베딩 생성 (자연어 변환본 사용)
@@ -223,3 +233,65 @@ async def delete_document(document_id: str, db: AsyncSession) -> bool:
     await db.commit()
     logger.info(f"문서 삭제: {doc.filename}")
     return True
+
+
+async def _semantic_chunk_document(
+    text: str,
+    chunk_size: int,
+    chunk_overlap: int,
+    generate_embeddings_fn,
+    split_into_paragraphs_fn,
+    semantic_chunk_fn,
+    fallback_chunk_fn,
+    split_table_aware_fn,
+    filename: str = "",
+) -> List[str]:
+    """시맨틱 청킹 메인 로직.
+    - 표 영역: 기존 헤더반복 방식 유지
+    - 일반 텍스트: 단락 임베딩 유사도 기반 시맨틱 경계 탐지
+    - 실패 시 자동 폴백 (문자 기반 슬라이딩 윈도우)
+    """
+    segments = split_table_aware_fn(text.strip())
+    chunks: List[str] = []
+
+    for seg_type, seg_lines, header in segments:
+        seg_text = "\n".join(seg_lines).strip()
+        if not seg_text:
+            continue
+
+        if seg_type == "table":
+            # 표: 기존 헤더반복 방식
+            table_chunks = fallback_chunk_fn(seg_text, chunk_size, chunk_overlap)
+            chunks.extend(table_chunks)
+            continue
+
+        # 일반 텍스트: 시맨틱 청킹
+        paragraphs = split_into_paragraphs_fn(seg_text)
+
+        if len(paragraphs) < 2:
+            # 단락이 1개면 폴백
+            chunks.extend(fallback_chunk_fn(seg_text, chunk_size, chunk_overlap))
+            continue
+
+        try:
+            para_embeddings = await generate_embeddings_fn(paragraphs)
+            semantic_chunks = semantic_chunk_fn(
+                paragraphs,
+                para_embeddings,
+                similarity_threshold=0.75,
+                max_chunk_size=chunk_size,
+            )
+            # 시맨틱 청킹 결과가 너무 크면 폴백으로 추가 분할
+            final = []
+            for sc in semantic_chunks:
+                if len(sc) > chunk_size * 1.5:
+                    final.extend(fallback_chunk_fn(sc, chunk_size, chunk_overlap))
+                else:
+                    final.append(sc)
+            chunks.extend(final)
+            logger.debug(f"[시맨틱청킹] {filename}: {len(paragraphs)}단락 → {len(final)}청크")
+        except Exception as e:
+            logger.warning(f"시맨틱 청킹 실패 ({filename}), 폴백: {e}")
+            chunks.extend(fallback_chunk_fn(seg_text, chunk_size, chunk_overlap))
+
+    return [c for c in chunks if c and c.strip()]

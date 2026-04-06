@@ -1,6 +1,6 @@
 # BAIKAL Private AI — RAG 품질 개선 로드맵
 
-> 마지막 업데이트: 2026-04-06 (최신 커밋: e9f9055)
+> 마지막 업데이트: 2026-04-06 (최신 커밋: semantic-chunking)
 
 ---
 
@@ -100,9 +100,11 @@
   - 엔진: Tesseract + `pytesseract`
   - 스캔 문서, 이미지 삽입 PDF 처리 가능
 
-- [ ] **시맨틱 청킹**
-  - 문장 임베딩 유사도 기반 경계 설정
-  - 현재 문자 수 기반보다 의미 단위로 정확히 분할
+- [x] **시맨틱 청킹** (2026-04-06)
+  - 단락 임베딩 유사도(bge-m3) 기반 의미 경계 탐지, `similarity_threshold=0.75`
+  - 표 영역은 기존 헤더반복 방식 유지, 일반 텍스트만 시맨틱 청킹 적용
+  - 시맨틱 청킹 실패 시 문자 기반 슬라이딩 윈도우로 자동 폴백
+  - `split_into_paragraphs()` + `semantic_chunk_with_embeddings()` → `chunker.py`
 
 - [x] **권한 단계 확장**
   - admin / manager / user 3단계, 문서별 is_public + allowed_roles 접근 제어 UI (d643653)
