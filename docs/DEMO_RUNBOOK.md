@@ -1,7 +1,7 @@
 # BAIKAL Private AI — 시연 런북 (Demo Runbook)
 
-> **버전**: 1.1 (Docker 배포 환경 기준)  
-> **작성일**: 2026-04-06 (Scene 6·7 추가 — d643653)  
+> **버전**: 1.2 (검색 원문 미리보기, 신뢰도 개선 반영)  
+> **작성일**: 2026-04-07  
 > **환경**: Windows 11 + Docker Desktop (CPU 모드)  
 > **총 소요 시간**: 준비 8분 + 시연 20분
 
@@ -26,6 +26,8 @@
 | 문서별 접근 권한 제어 | ✅ | is_public 토글 + allowed_roles 설정 |
 | Cross-encoder Reranking | ✅ | ms-marco-MiniLM-L-6-v2, 폐쇄망 포함 |
 | 신뢰도 점수 + 청크 미리보기 | ✅ | 답변 헤더 배지 + 출처 팝업 |
+| 검색 원문 미리보기 (펼치기 버튼) | ✅ | 청크 전문 토글 표시 |
+| 신뢰도 sigmoid 절대 관련도 | ✅ | sigmoid 변환 + 가중 평균 (최고점 60% + 상위절반 40%) |
 | 감사 로그 (QueryLog) | ✅ | 질문·응답·신뢰도·지연시간 DB 저장 |
 | 시스템 설정 페이지 | ✅ | LLM 모델 런타임 전환 + 쿼리 통계 |
 | 비밀번호 변경 기능 | ✅ | 현재 세션 유지 |
@@ -53,7 +55,7 @@
 
 ```powershell
 docker --version
-docker-compose --version
+docker compose --version
 ```
 
 기대 출력:
@@ -70,7 +72,7 @@ Docker Compose version v2.x.x
 
 ```powershell
 cd c:\baikal777\baikal-private-ai
-docker-compose -f docker-compose.cpu.yml build
+docker compose -f docker compose.cpu.yml build
 ```
 
 완료 시 출력:
@@ -86,7 +88,7 @@ Successfully tagged baikal-private-ai-frontend:latest
 
 ```powershell
 # 컨테이너 먼저 시작
-docker-compose -f docker-compose.cpu.yml up -d ollama
+docker compose -f docker compose.cpu.yml up -d ollama
 
 # LLM 모델 (4.7 GB)
 docker exec baikal-ollama ollama pull qwen2.5:7b
@@ -148,7 +150,7 @@ Win + X  →  "Windows PowerShell" 또는 "터미널" 클릭
 
 ```powershell
 cd c:\baikal777\baikal-private-ai
-docker-compose -f docker-compose.cpu.yml up -d
+docker compose -f docker compose.cpu.yml up -d
 ```
 
 기대 출력:
@@ -375,6 +377,7 @@ RAG 시스템 평가
 - 유사도 점수(%)로 관련도 정량화
 - 벡터 검색 = 단어가 달라도 의미가 같으면 검색됨
 - "연차"로 검색해도 "유급휴가" 내용이 검색되는 사례
+- 결과 카드 하단 **"원문 미리보기"** 버튼 클릭 → 청크 전문 펼쳐보기
 
 ---
 
@@ -461,7 +464,7 @@ RAG 시스템 평가
 | "외부 인터넷이 없어도 되나요?" | 네. 모델과 코드 모두 로컬에 있어 완전 폐쇄망 운영 가능합니다. |
 | "답변 속도를 높일 수 있나요?" | GPU 서버 추가 시 약 2분 → 8초로 단축됩니다. |
 | "얼마나 많은 문서를 처리할 수 있나요?" | pgvector HNSW 인덱스 기반으로 수백만 청크 처리 가능. 로컬 PC 기준 실용 한계는 1,000~3,000개 문서입니다. |
-| "어떤 파일 형식을 지원하나요?" | PDF, DOCX, XLSX, HWPX 지원. 추가 형식은 커스터마이징 가능합니다. |
+| "어떤 파일 형식을 지원하나요?" | PDF, DOCX, XLSX, HWP, HWPX 지원. 추가 형식은 커스터마이징 가능합니다. |
 | "데이터는 어디에 저장되나요?" | 서버 내 PostgreSQL DB에만 저장. 벡터 데이터도 pgvector로 로컬 저장합니다. |
 | "여러 명이 동시에 쓸 수 있나요?" | 백엔드 4-worker로 동시 처리. GPU 환경에서 더 많은 동시 사용자 지원 가능합니다. |
 | "설치가 어렵나요?" | Docker Desktop 설치 후 명령어 1줄로 기동. 폐쇄망은 이미지 파일로 이전합니다. |
@@ -480,13 +483,13 @@ RAG 시스템 평가
 
 ```powershell
 cd c:\baikal777\baikal-private-ai
-docker-compose -f docker-compose.cpu.yml stop
+docker compose -f docker compose.cpu.yml stop
 ```
 
 ### 다음 번 재시작
 
 ```powershell
-docker-compose -f docker-compose.cpu.yml up -d
+docker compose -f docker compose.cpu.yml up -d
 ```
 
 > 볼륨(postgres_data, ollama_data, upload_data)에 모든 데이터가 유지됩니다.  
@@ -496,10 +499,10 @@ docker-compose -f docker-compose.cpu.yml up -d
 
 ```powershell
 # 컨테이너+네트워크 삭제 (볼륨은 유지)
-docker-compose -f docker-compose.cpu.yml down
+docker compose -f docker compose.cpu.yml down
 
 # 볼륨까지 삭제 (데이터 완전 초기화 — 주의!)
-docker-compose -f docker-compose.cpu.yml down -v
+docker compose -f docker compose.cpu.yml down -v
 ```
 
 ---
@@ -585,7 +588,7 @@ docker restart baikal-nginx
 │  □ Docker Desktop 초록불 확인                    │
 │  □ PowerShell 열기                              │
 │  □ cd c:\baikal777\baikal-private-ai            │
-│  □ docker-compose -f docker-compose.cpu.yml     │
+│  □ docker compose -f docker compose.cpu.yml     │
 │      up -d                                      │
 │  □ 30초 대기                                    │
 │  □ Invoke-RestMethod http://localhost/api/health │
