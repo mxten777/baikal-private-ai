@@ -7,6 +7,8 @@ import { authAPI } from '../api/client';
 
 const AuthContext = createContext(null);
 
+export { AuthContext };
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
