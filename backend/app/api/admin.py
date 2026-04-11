@@ -114,7 +114,6 @@ async def query_log_stats(
     _admin: User = Depends(require_admin),
 ):
     """감사 로그 통계"""
-    from sqlalchemy import func
     result = await db.execute(
         select(
             func.count(QueryLog.id).label("total"),

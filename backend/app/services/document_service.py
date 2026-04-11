@@ -164,7 +164,7 @@ async def process_document_async(document_id: str):
 
             # 1. 텍스트 추출 (P3-8: PDF/DOCX는 비전 모델 우선 시도)
             # 동기 함수들은 run_in_executor로 실행하여 이벤트 루프 블로킹 방지
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             try:
                 if doc.file_type == "pdf":
                     text = await loop.run_in_executor(

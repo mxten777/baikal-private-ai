@@ -1,8 +1,11 @@
 """
 Embedder - Ollama를 통한 임베딩 생성
 """
+import logging
 from typing import List
 from app.services.llm_service import call_ollama_embedding
+
+logger = logging.getLogger("baikal.embedder")
 
 
 async def generate_embeddings(texts: List[str]) -> List[List[float]]:
@@ -17,5 +20,5 @@ async def generate_embeddings(texts: List[str]) -> List[List[float]]:
         embeddings = await call_ollama_embedding(texts)
         return embeddings
     except Exception as e:
-        print(f"[EMB] 임베딩 생성 실패: {e}")
+        logger.error(f"임베딩 생성 실패: {e}")
         raise

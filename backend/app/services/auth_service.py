@@ -75,6 +75,6 @@ async def create_default_admin(db: AsyncSession, username: str, password: str):
         )
         db.add(admin)
         await db.commit()
-        print(f"[INIT] 기본 관리자 계정 생성: {username}")
+        logger.info(f"[INIT] 기본 관리자 계정 생성: {username}")
     else:
-        print(f"[INIT] 관리자 계정 이미 존재: {username}")
+        logger.info(f"[INIT] 관리자 계정 이미 존재: {username}")

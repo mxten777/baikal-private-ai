@@ -269,7 +269,7 @@ async def retrieve_relevant_chunks(
     if cross_encoder is not None and mmr_results:
         try:
             pairs = [[query, r["content"]] for r in mmr_results]
-            ce_scores = await asyncio.get_event_loop().run_in_executor(
+            ce_scores = await asyncio.get_running_loop().run_in_executor(
                 None, cross_encoder.predict, pairs
             )
             for i, r in enumerate(mmr_results):
@@ -279,7 +279,6 @@ async def retrieve_relevant_chunks(
             # 노출용 점수: sigmoid 변환으로 절대 관련도 반영
             # ce_score는 보통 -10 ~ +10 범위. sigmoid(x) = 1/(1+e^-x)
             for r in final_results:
-                import math
                 r["score"] = round(1 / (1 + math.exp(-r["ce_score"])), 4)
             logger.info(
                 f"검색 완료: 후보 {len(candidates)}개 → MMR {len(mmr_results)}개 "
