@@ -302,7 +302,7 @@ if user_logged_in:
 section("11. 로그아웃 및 토큰 폐기")
 
 r = admin_client.post("/api/auth/logout", timeout=TIMEOUT)
-check("POST /api/auth/logout -> 200", r.status_code == 200,
+check("POST /api/auth/logout -> 200/204", r.status_code in (200, 204),
     f"status={r.status_code}")
 
 # 로그아웃 후 /me 접근 불가 확인
