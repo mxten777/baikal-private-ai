@@ -6,6 +6,7 @@ import logging
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
@@ -13,7 +14,7 @@ from app.schemas.chat import (
     ChatSessionCreate, ChatSessionResponse,
     ChatMessageResponse, AskRequest, AskResponse,
 )
-from app.models.document import ChatSession, ChatMessage
+from app.models.document import ChatSession, ChatMessage, QueryLog
 from app.models.user import User
 from app.core.deps import get_current_user
 from app.services.rag_service import ask_question, ask_question_stream
@@ -166,4 +167,76 @@ async def delete_session(
         raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다")
 
     await db.delete(session)
+    await db.commit()
+
+
+class FeedbackRequest(BaseModel):
+    score: int  # 1 = 좋음, -1 = 나쁨
+
+
+class SourceClickRequest(BaseModel):
+    chunk_id: str
+
+
+@router.post("/messages/{message_id}/feedback", status_code=204)
+async def message_feedback(
+    message_id: str,
+    request: FeedbackRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """답변 피드백 기록 (👍=1 / 👎=-1)"""
+    if request.score not in (1, -1):
+        raise HTTPException(status_code=400, detail="score는 1 또는 -1이어야 합니다")
+
+    # 메시지 소유자 확인
+    result = await db.execute(
+        select(ChatMessage)
+        .join(ChatSession, ChatMessage.session_id == ChatSession.id)
+        .where(ChatMessage.id == message_id, ChatSession.user_id == current_user.id)
+    )
+    msg = result.scalar_one_or_none()
+    if msg is None:
+        raise HTTPException(status_code=404, detail="메시지를 찾을 수 없습니다")
+
+    # 해당 메시지와 연결된 가장 최근 QueryLog 업데이트
+    log_result = await db.execute(
+        select(QueryLog)
+        .where(QueryLog.session_id == msg.session_id, QueryLog.user_id == current_user.id)
+        .order_by(QueryLog.created_at.desc())
+        .limit(1)
+    )
+    query_log = log_result.scalar_one_or_none()
+    if query_log:
+        query_log.feedback_score = request.score
+    await db.commit()
+
+
+@router.post("/messages/{message_id}/source-click", status_code=204)
+async def message_source_click(
+    message_id: str,
+    request: SourceClickRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """출처 청크 클릭 이벤트 기록"""
+    # 메시지 소유자 확인
+    result = await db.execute(
+        select(ChatMessage)
+        .join(ChatSession, ChatMessage.session_id == ChatSession.id)
+        .where(ChatMessage.id == message_id, ChatSession.user_id == current_user.id)
+    )
+    msg = result.scalar_one_or_none()
+    if msg is None:
+        raise HTTPException(status_code=404, detail="메시지를 찾을 수 없습니다")
+
+    log_result = await db.execute(
+        select(QueryLog)
+        .where(QueryLog.session_id == msg.session_id, QueryLog.user_id == current_user.id)
+        .order_by(QueryLog.created_at.desc())
+        .limit(1)
+    )
+    query_log = log_result.scalar_one_or_none()
+    if query_log:
+        query_log.click_source_flag = True
     await db.commit()

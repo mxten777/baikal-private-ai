@@ -48,6 +48,7 @@ async def create_user(
         username=request.username,
         password_hash=hash_password(request.password),
         role=request.role if request.role in ("admin", "manager", "user") else "user",
+        department=request.department,
     )
     db.add(user)
     await db.commit()
@@ -74,6 +75,8 @@ async def update_user(
         user.is_active = request.is_active
     if request.password is not None:
         user.password_hash = hash_password(request.password)
+    if request.department is not None:
+        user.department = request.department
 
     await db.commit()
     await db.refresh(user)

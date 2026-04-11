@@ -40,12 +40,7 @@ export default function Layout() {
           >
             <HiOutlineBars3 className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-baikal-500 to-purple-600 flex items-center justify-center">
-              <span className="text-white font-black text-[8px]">B</span>
-            </div>
-            <span className="text-sm font-bold text-gray-200">BAIKAL</span>
-          </div>
+          <img src="/images/baikal_logo_white.png" alt="BAIKAL" className="h-8 w-auto" />
         </div>
         <Outlet />
       </main>

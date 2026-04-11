@@ -34,6 +34,11 @@ class Document(Base):
     error_message: Mapped[str] = mapped_column(Text, nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     allowed_roles: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)
+    # P3-6 Document Lineage
+    chunk_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)   # 처리 완료 시 청크 수
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )  # 마지막 처리/수정 시각
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
@@ -54,6 +59,8 @@ class DocumentChunk(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     nl_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     embedding = mapped_column(Vector(settings.EMBEDDING_DIMENSION), nullable=True)
+    page_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)    # PDF/DOCX 페이지 번호 (1-based)
+    source_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # "text" / "table" / "ocr"
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
@@ -114,3 +121,14 @@ class QueryLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
+    # KPI 산출용 확장 필드 (0003 마이그레이션)
+    session_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    retrieved_chunks: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)   # [{chunk_id, score, rank}]
+    reranked_order: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)     # [chunk_id, ...] cross-encoder 정렬 후
+    cited_sources: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)      # LLM 인용 chunk_id 목록
+    model_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)   # 사용 LLM 모델명
+    retrieval_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)     # 검색 단계 ms
+    reranking_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)     # Cross-encoder 단계 ms
+    llm_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)           # LLM 생성 단계 ms
+    feedback_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)   # 1=좋음 / -1=나쁨
+    click_source_flag: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)  # 출처 클릭 여부

@@ -10,6 +10,7 @@ from app.models.document import Document, DocumentChunk, ChatSession, ChatMessag
 from app.services.llm_service import call_ollama_chat, call_ollama_chat_stream, call_ollama_embedding
 from app.rag.retriever import retrieve_relevant_chunks
 from app.config import get_settings
+from app.services.guardrail_service import check_guardrail, PolicyAction
 
 settings = get_settings()
 logger = logging.getLogger("baikal.rag")
@@ -61,8 +62,29 @@ async def ask_question(
     if session is None:
         raise ValueError("채팅 세션을 찾을 수 없습니다")
 
+    # Guardrail: 비관련/유해 질문 선제 차단
+    guard = check_guardrail(question, user_id=user_id)
+    if guard.action != PolicyAction.ALLOW:
+        # 차단 로그 기록 (QueryLog.feedback_score=-2 로 Policy Violation 표시)
+        try:
+            vio_log = QueryLog(
+                user_id=user_id,
+                query=question,
+                response_summary=f"[GUARDRAIL:{guard.category}] {guard.reason}",
+                confidence_score=0.0,
+                latency_ms=0,
+                session_id=session_id,
+                model_name=settings.LLM_MODEL,
+                feedback_score=-2,  # -2 = Policy Violation
+            )
+            db.add(vio_log)
+            await db.commit()
+        except Exception as e:
+            logger.warning(f"Guardrail 로그 저장 실패: {e}")
+        raise ValueError(guard.safe_message)
+
     # 2. RAG 컨텍스트 생성 (_build_rag_context 활용, 중복 로직 제거)
-    context, sources, confidence_score = await _build_rag_context(
+    context, sources, confidence_score, retriever_meta = await _build_rag_context(
         question, db, document_ids=document_ids, user_role=user_role
     )
 
@@ -77,12 +99,14 @@ async def ask_question(
         "content": f"참고 문서:\n{context}\n\n질문: {question}\n\n위 문서 내용을 기반으로 답변해주세요."
     })
 
-    # 7. LLM 호출
+    # 5. LLM 호출
+    llm_start = time.time()
     answer = await call_ollama_chat(messages=messages)
+    llm_ms = int((time.time() - llm_start) * 1000)
 
     latency_ms = int((time.time() - start_time) * 1000)
 
-    # 8. 감사 로그 저장
+    # 6. 감사 로그 저장
     try:
         query_log = QueryLog(
             user_id=user_id,
@@ -91,12 +115,19 @@ async def ask_question(
             document_ids=[s['document_id'] for s in sources],
             confidence_score=confidence_score,
             latency_ms=latency_ms,
+            session_id=session_id,
+            retrieved_chunks=retriever_meta.get("retrieved_chunks"),
+            reranked_order=retriever_meta.get("reranked_order"),
+            model_name=settings.LLM_MODEL,
+            retrieval_ms=retriever_meta.get("retrieval_ms"),
+            reranking_ms=retriever_meta.get("reranking_ms"),
+            llm_ms=llm_ms,
         )
         db.add(query_log)
     except Exception as e:
         logger.warning(f"감사 로그 저장 실패: {e}")
 
-    # 9. 메시지 저장
+    # 7. 메시지 저장
     user_msg = ChatMessage(
         session_id=session_id,
         role="user",
@@ -130,9 +161,11 @@ async def ask_question(
 async def _build_rag_context(
     question: str, db: AsyncSession,
     document_ids: list = None, user_role: str = "user"
-) -> tuple[str, list, float]:
-    """질문에 대한 RAG 컨텍스트 생성 (retriever 사용)"""
-    chunks = await retrieve_relevant_chunks(
+) -> tuple[str, list, float, dict]:
+    """질문에 대한 RAG 컨텍스트 생성 (retriever 사용)
+    반환: (context, sources, confidence_score, retriever_meta)
+    """
+    chunks, retriever_meta = await retrieve_relevant_chunks(
         question, db, document_ids=document_ids, user_role=user_role
     )
 
@@ -151,6 +184,7 @@ async def _build_rag_context(
                 "chunk_id": chunk.get('chunk_id'),
                 "chunk_index": chunk['chunk_index'],
                 "chunk_content": chunk['content'][:300],
+                "page_number": chunk.get('page_number'),
             })
             seen_docs.add(chunk['document_id'])
 
@@ -163,7 +197,7 @@ async def _build_rag_context(
         confidence_score = round(0.6 * top_score + 0.4 * upper_avg, 3)
     else:
         confidence_score = 0.0
-    return context, sources, confidence_score
+    return context, sources, confidence_score, retriever_meta
 
 
 async def ask_question_stream(
@@ -184,8 +218,29 @@ async def ask_question_stream(
         yield {"type": "error", "content": "채팅 세션을 찾을 수 없습니다"}
         return
 
+    # Guardrail: 비관련/유해 질문 선제 차단
+    guard = check_guardrail(question, user_id=user_id)
+    if guard.action != PolicyAction.ALLOW:
+        try:
+            vio_log = QueryLog(
+                user_id=user_id,
+                query=question,
+                response_summary=f"[GUARDRAIL:{guard.category}] {guard.reason}",
+                confidence_score=0.0,
+                latency_ms=0,
+                session_id=session_id,
+                model_name=settings.LLM_MODEL,
+                feedback_score=-2,
+            )
+            db.add(vio_log)
+            await db.commit()
+        except Exception as e:
+            logger.warning(f"Guardrail 로그 저장 실패: {e}")
+        yield {"type": "error", "content": guard.safe_message}
+        return
+
     # RAG 컨텍스트 생성
-    context, sources, confidence_score = await _build_rag_context(
+    context, sources, confidence_score, retriever_meta = await _build_rag_context(
         question, db, document_ids=document_ids, user_role=user_role
     )
 
@@ -204,31 +259,16 @@ async def ask_question_stream(
     })
 
     # LLM 스트리밍 호출
+    llm_start = time.time()
     full_answer = ""
     async for chunk in call_ollama_chat_stream(messages=messages):
         full_answer += chunk
         yield {"type": "token", "content": chunk}
 
+    llm_ms = int((time.time() - llm_start) * 1000)
     latency_ms = int((time.time() - start_time) * 1000)
 
-    # 완료 신호 (신뢰도 점수 포함)
-    yield {"type": "done", "content": full_answer, "confidence_score": confidence_score}
-
-    # 감사 로그 저장
-    try:
-        query_log = QueryLog(
-            user_id=user_id,
-            query=question,
-            response_summary=full_answer[:500],
-            document_ids=[s['document_id'] for s in sources],
-            confidence_score=confidence_score,
-            latency_ms=latency_ms,
-        )
-        db.add(query_log)
-    except Exception as e:
-        logger.warning(f"감사 로그 저장 실패: {e}")
-
-    # 메시지 저장
+    # 완료 신호 전에 메시지 저장 → message_id 확보
     user_msg = ChatMessage(session_id=session_id, role="user", content=question)
     db.add(user_msg)
 
@@ -244,6 +284,33 @@ async def ask_question_stream(
         session.title = question[:50] + ("..." if len(question) > 50 else "")
 
     await db.commit()
+    await db.refresh(assistant_msg)
+
+    # 완료 신호 (신뢰도 점수 + message_id 포함)
+    yield {"type": "done", "content": full_answer, "confidence_score": confidence_score, "message_id": assistant_msg.id}
+
+    # 감사 로그 저장
+    try:
+        query_log = QueryLog(
+            user_id=user_id,
+            query=question,
+            response_summary=full_answer[:500],
+            document_ids=[s['document_id'] for s in sources],
+            confidence_score=confidence_score,
+            latency_ms=latency_ms,
+            session_id=session_id,
+            retrieved_chunks=retriever_meta.get("retrieved_chunks"),
+            reranked_order=retriever_meta.get("reranked_order"),
+            model_name=settings.LLM_MODEL,
+            retrieval_ms=retriever_meta.get("retrieval_ms"),
+            reranking_ms=retriever_meta.get("reranking_ms"),
+            llm_ms=llm_ms,
+        )
+        db.add(query_log)
+    except Exception as e:
+        logger.warning(f"감사 로그 저장 실패: {e}")
+
+    await db.commit()
 
 
 async def search_documents(query: str, db: AsyncSession, mode: str = "hybrid") -> list:
@@ -254,7 +321,7 @@ async def search_documents(query: str, db: AsyncSession, mode: str = "hybrid") -
     # 1. 벡터 검색 (시맨틱)
     if mode in ("vector", "hybrid"):
         try:
-            chunks = await retrieve_relevant_chunks(query, db, top_k=5)
+            chunks, _ = await retrieve_relevant_chunks(query, db, top_k=5)
             for chunk in chunks:
                 if chunk['document_id'] not in seen:
                     # 검색어 주변 snippet 추출

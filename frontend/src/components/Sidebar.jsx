@@ -55,14 +55,8 @@ export default function Sidebar({ onClose }) {
     <aside className="w-[220px] bg-[#13131d] border-r border-white/[0.04] flex flex-col h-screen">
       {/* 로고 */}
       <div className="px-4 pt-5 pb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-baikal-500 to-purple-600 flex items-center justify-center">
-            <span className="text-white font-black text-[11px]">B</span>
-          </div>
-          <div>
-            <h1 className="text-[15px] font-bold text-white leading-none">BAIKAL</h1>
-            <p className="text-[9px] text-gray-500 font-medium tracking-[0.15em] uppercase mt-0.5">Private AI</p>
-          </div>
+        <div className="flex items-center">
+          <img src="/images/baikal_logo_white.png" alt="BAIKAL" className="h-11 w-auto" />
         </div>
         {onClose && (
           <button onClick={onClose} className="p-1.5 text-gray-500 hover:text-gray-300 rounded-lg transition-colors lg:hidden">

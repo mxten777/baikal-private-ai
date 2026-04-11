@@ -1,5 +1,6 @@
 /**
  * API Client - Axios 인스턴스
+ * P3-4: HttpOnly 쿠키 기반 인증 (withCredentials, localStorage 제거)
  */
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -11,18 +12,10 @@ const client = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // P3-4: HttpOnly 쿠키 자동 전송
 });
 
-// 요청 인터셉터: JWT 토큰 자동 추가
-client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// 응답 인터셉터: 401 시 리프레시 시도
+// 응답 인터셉터: 401 시 쿠키 기반 리프레시 시도
 client.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -31,24 +24,12 @@ client.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      const refreshToken = localStorage.getItem('refresh_token');
-      if (refreshToken) {
-        try {
-          const res = await axios.post(`${API_BASE}/auth/refresh`, {
-            refresh_token: refreshToken,
-          });
-          const { access_token, refresh_token } = res.data;
-          localStorage.setItem('access_token', access_token);
-          localStorage.setItem('refresh_token', refresh_token);
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
-          return client(originalRequest);
-        } catch {
-          // 리프레시 실패 → 로그아웃
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
-        }
-      } else {
+      try {
+        // P3-4: refresh_token은 HttpOnly 쿠키로 자동 전송
+        await axios.post(`${API_BASE}/auth/refresh`, {}, { withCredentials: true });
+        return client(originalRequest);
+      } catch {
+        // 리프레시 실패 → 로그아웃
         window.location.href = '/login';
       }
     }
@@ -56,14 +37,11 @@ client.interceptors.response.use(
     // 글로벌 에러 토스트 (401 제외 - 이미 처리됨)
     if (!originalRequest._retry) {
       if (!error.response) {
-        // 네트워크 오류 (서버 연결 불가)
         toast.error('서버에 연결할 수 없습니다. 네트워크를 확인해주세요.', { id: 'network-error' });
       } else if (error.response.status >= 500) {
-        // 서버 내부 오류
         const msg = error.response.data?.detail || '서버 오류가 발생했습니다';
         toast.error(msg, { id: 'server-error' });
       } else if (error.response.status === 503) {
-        // Ollama/서비스 비가용
         toast.error('AI 서비스가 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해주세요.', { id: 'service-unavailable' });
       }
     }
@@ -77,6 +55,7 @@ export const authAPI = {
   login: (username, password) =>
     client.post('/auth/login', { username, password }),
   me: () => client.get('/auth/me'),
+  logout: () => client.post('/auth/logout', {}),
   changePassword: (currentPassword, newPassword) =>
     client.patch('/auth/password', {
       current_password: currentPassword,
@@ -122,38 +101,27 @@ export const chatAPI = {
 
   // 스트리밍 질문응답
   askStream: async function* (sessionId, question, documentIds = null) {
-    // 토큰 갱신 후 fetch 헬퍼 (SSE는 Axios 인터셉터 우회하므로 직접 처리)
-    const fetchWithAuth = async () => {
-      const token = localStorage.getItem('access_token');
-      return fetch(`${API_BASE}/chat/ask/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ session_id: sessionId, question, document_ids: documentIds }),
-      });
-    };
+    // P3-4: SSE는 Axios 인터셉터를 우회하므로 credentials 직접 설정
+    const doFetch = () => fetch(`${API_BASE}/chat/ask/stream`, {
+      method: 'POST',
+      credentials: 'include', // HttpOnly 쿠키 자동 전송
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, question, document_ids: documentIds }),
+    });
 
-    let response = await fetchWithAuth();
+    let response = await doFetch();
 
-    // 401: 토큰 갱신 후 1회 재시도
+    // 401: 쿠키 기반 토큰 갱신 후 1회 재시도
     if (response.status === 401) {
-      const refreshToken = localStorage.getItem('refresh_token');
-      if (!refreshToken) {
-        window.location.href = '/login';
-        return;
-      }
       try {
-        const res = await axios.post(`${API_BASE}/auth/refresh`, {
-          refresh_token: refreshToken,
+        await fetch(`${API_BASE}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
         });
-        localStorage.setItem('access_token', res.data.access_token);
-        localStorage.setItem('refresh_token', res.data.refresh_token);
-        response = await fetchWithAuth();
+        response = await doFetch();
       } catch {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
         window.location.href = '/login';
         return;
       }
@@ -201,6 +169,12 @@ export const adminAPI = {
   activateModel: (modelName) => client.post(`/admin/models/activate?model_name=${encodeURIComponent(modelName)}`),
   queryLogs: (skip = 0, limit = 50) => client.get('/admin/query-logs', { params: { skip, limit } }),
   queryLogStats: () => client.get('/admin/query-logs/stats'),
+  // P2-7 KPI APIs
+  kpiActiveUsers: () => client.get('/admin/kpi/active-users'),
+  kpiRagPerformance: () => client.get('/admin/kpi/rag-performance'),
+  kpiWeeklyTrend: () => client.get('/admin/kpi/weekly-trend'),
+  // P3-1 Guardrail
+  kpiPolicyViolations: () => client.get('/admin/kpi/policy-violations'),
 };
 
 export default client;

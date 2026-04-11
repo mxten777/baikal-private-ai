@@ -9,6 +9,8 @@ import {
   HiOutlineDocumentText,
   HiOutlineSparkles,
   HiOutlineArrowTrendingUp,
+  HiOutlineChevronDown,
+  HiOutlineChevronUp,
 } from 'react-icons/hi2';
 
 const MODES = [
@@ -23,6 +25,10 @@ export default function SearchPage() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [expanded, setExpanded] = useState({});
+
+  const toggleExpand = (idx) =>
+    setExpanded((prev) => ({ ...prev, [idx]: !prev[idx] }));
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -123,6 +129,23 @@ export default function SearchPage() {
                     )}
                   </div>
                   <p className="text-[13px] text-gray-400 leading-relaxed bg-white/[0.02] rounded-lg p-3.5 border border-white/[0.03]">...{result.content_snippet}...</p>
+                  {result.content && (
+                    <div className="mt-2">
+                      <button
+                        onClick={() => toggleExpand(idx)}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-baikal-400 hover:text-baikal-300 transition-colors"
+                      >
+                        {expanded[idx]
+                          ? <><HiOutlineChevronUp className="w-3.5 h-3.5" /> 원문 접기</>
+                          : <><HiOutlineChevronDown className="w-3.5 h-3.5" /> 원문 미리보기</>}
+                      </button>
+                      {expanded[idx] && (
+                        <pre className="mt-2 text-[12px] text-gray-300 leading-relaxed bg-white/[0.03] rounded-lg p-3.5 border border-white/[0.05] whitespace-pre-wrap break-words font-sans">
+                          {result.content}
+                        </pre>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

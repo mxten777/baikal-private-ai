@@ -39,6 +39,7 @@ class SearchResult(BaseModel):
     document_id: str
     filename: str
     content_snippet: str
+    content: Optional[str] = None
     score: Optional[float] = None
     chunk_id: Optional[str] = None
     chunk_index: Optional[int] = None

@@ -102,13 +102,11 @@ async def value_error_handler(request: Request, exc: ValueError):
         content={"detail": str(exc)},
     )
 
-# CORS
-# JWT 토큰은 Authorization 헤더로 전달되므로 credentials(쿠키) 불필요
-# allow_origins와 allow_credentials=True 조합은 브라우저 스펙 위반
+# CORS — P3-4: credentials=True (HttpOnly 쿠키 지원), 지정 origin 필수
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type"],
 )

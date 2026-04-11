@@ -12,6 +12,7 @@ class UserCreate(BaseModel):
     username: str
     password: str
     role: str = "user"
+    department: Optional[str] = None
 
     @field_validator("password")
     @classmethod
@@ -32,6 +33,7 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None
+    department: Optional[str] = None
 
     @field_validator("password")
     @classmethod
@@ -46,6 +48,7 @@ class UserResponse(BaseModel):
     username: str
     role: str
     is_active: bool
+    department: Optional[str] = None
     created_at: datetime
 
     class Config:

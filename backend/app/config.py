@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     OCR_MIN_TEXT_PER_PAGE: int = 30
     OCR_DPI: int = 200
 
+    # CORS — 개발 시 http://localhost:3000 추가; 운영 시 실제 도메인으로 변경
+    CORS_ORIGINS: list = [
+        "http://localhost",
+        "http://localhost:80",
+        "http://localhost:3000",
+    ]
+
     @model_validator(mode="after")
     def validate_production_secrets(self) -> "Settings":
         if self.APP_ENV == "production":

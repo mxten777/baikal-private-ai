@@ -1,6 +1,6 @@
 # BAIKAL Private AI — RAG 품질 개선 로드맵
 
-> 마지막 업데이트: 2026-04-06 (최신 커밋: semantic-chunking)
+> 마지막 업데이트: 2026-04-07 (최신 커밋: logo-update, 기능 완료: Cross-encoder·OCR·시맨틱청킹·3단계권한·신뢰도·감사로그)
 
 ---
 
@@ -9,23 +9,24 @@
 | 기능 영역 | Dify | LlamaIndex | Cohere RAG | **BAIKAL (현재)** |
 |---|---|---|---|---|
 | 배포 형태 | 자체호스팅 가능 | 라이브러리 | 클라우드 전용 | ✅ 완전 폐쇄망 |
-| 청킹 | 고급(시맨틱/구조인식) | 고급(노드파서) | N/A | 문자기반 + 표헤더반복 |
-| 검색 방식 | 벡터+전문검색 | 벡터+BM25+다양 | 벡터+rerank | 벡터+BM25+MMR |
-| Reranking | Cross-encoder | Cross-encoder | Cohere Rerank | MMR(다양성 기반) |
-| 멀티모달 | ✅ 이미지 | ✅ 이미지 | 제한적 | ❌ 없음 |
-| 지원 파일 형식 | 10종+ | 플러그인 무제한 | 제한적 | PDF/DOCX/XLSX/HWP/HWPX |
+| 청킹 | 고급(시맨틱/구조인식) | 고급(노드파서) | N/A | ✅ 시맨틱청킹 + 표헤더반복 + OCR폴백 |
+| 검색 방식 | 벡터+전문검색 | 벡터+BM25+다양 | 벡터+rerank | ✅ 벡터+BM25+MMR |
+| Reranking | Cross-encoder | Cross-encoder | Cohere Rerank | ✅ Cross-encoder + MMR |
+| 이미지 PDF(OCR) | ✅ | 플러그인 | 제한적 | ✅ Tesseract 5 (kor+eng) |
+| 지원 파일 형식 | 10종+ | 플러그인 무제한 | 제한적 | ✅ PDF/DOCX/XLSX/HWP/HWPX |
 | 멀티유저 | ✅ | ❌(라이브러리) | ✅ | ✅ |
-| 권한 관리 | 팀/워크스페이스 | ❌ | 팀 | admin/user 2단계 |
+| 권한 관리 | 팀/워크스페이스 | ❌ | 팀 | ✅ admin/manager/user 3단계 + 문서별 접근제어 |
 | UI | ✅ 풀 노코드 | ❌ 코드만 | API만 | ✅ React 대화형 |
-| LLM 교체 | ✅ 다수 지원 | ✅ 다수 지원 | Cohere 전용 | Ollama 모델 교체 가능 |
+| LLM 교체 | ✅ 다수 지원 | ✅ 다수 지원 | Cohere 전용 | ✅ Ollama 모델 런타임 전환 |
 | 스트리밍 | ✅ | ✅ | ✅ | ✅ |
+| 신뢰도/감사로그 | ✅ | 부분 | 제한적 | ✅ sigmoid 신뢰도 + QueryLog DB |
 | 한글 문서(HWP) | 부분 | 부분 | 제한적 | ✅ HWP/HWPX 네이티브 |
 | 인터넷 불필요 | 자체호스팅 시 가능 | ✅ | ❌ | ✅ 완전 격리 |
 
-### 현재 수준 평가
-- **Dify 초기 버전(v0.3~0.4) 수준**
-- **강점:** 완전 폐쇄망 + HWP 네이티브 + 원클릭 설치 → 국내 기업 환경 특화
-- **핵심 격차:** Cross-encoder Reranking 부재, 이미지 PDF 미지원, 권한 단계 단순
+### 현재 수준 평가 (2026-04-06 기준)
+- **Dify v0.6 수준** (Cross-encoder, OCR, 시맨틱청킹, 3단계 권한 모두 구현 완료)
+- **강점:** 완전 폐쇄망 + HWP 네이티브 + 원클릭 설치 + 신뢰도 투명성 → 국내 기업 환경 특화
+- **잔여 격차:** 멀티모달 이미지 이해(차트·도표 내용 추출), HyDE 검색 정확도 향상
 
 ---
 

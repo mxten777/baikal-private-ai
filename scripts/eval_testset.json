@@ -1,0 +1,35 @@
+[
+  {
+    "query": "AI SaaS 플랫폼 구축 사업계획서에서 핵심 사업 목표는 무엇인가?",
+    "relevant_doc_ids": ["3f9f8641-46ef-4339-8d50-476d516ffeda"],
+    "expected_keywords": ["AI", "SaaS", "플랫폼", "사업"],
+    "query_type": "business"
+  },
+  {
+    "query": "난독증 교육 개선 방안에서 제안하는 주요 내용은?",
+    "relevant_doc_ids": ["c7842a4f-0daa-452a-880f-8c17fa3dde68"],
+    "expected_keywords": ["난독증", "교육", "개선"],
+    "query_type": "policy"
+  },
+  {
+    "query": "바이브코딩 트렌드에서 소개하는 주요 기술 동향은?",
+    "relevant_doc_ids": ["8b6b37bb-d94e-4875-b099-51ec8ba49dd3"],
+    "expected_keywords": ["바이브코딩", "트렌드", "기술"],
+    "query_type": "tech"
+  },
+  {
+    "query": "AI SW 마에스트로 멘토 지원서의 지원 내용은?",
+    "relevant_doc_ids": ["b16f9c39-3276-4e75-b1a3-86f865eccf77"],
+    "expected_keywords": ["마에스트로", "멘토", "지원"],
+    "query_type": "application"
+  },
+  {
+    "query": "AI 플랫폼 구축에 필요한 기술 스택이나 요구사항은?",
+    "relevant_doc_ids": [
+      "3f9f8641-46ef-4339-8d50-476d516ffeda",
+      "8b6b37bb-d94e-4875-b099-51ec8ba49dd3"
+    ],
+    "expected_keywords": ["기술", "플랫폼", "AI"],
+    "query_type": "tech"
+  }
+]

@@ -1,25 +1,35 @@
 """
 Dependencies - Auth dependencies for FastAPI
+P3-4: HttpOnly 쿠키 우선, Authorization 헤더 폴백 (Swagger UI 호환)
 """
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
 from app.core.security import decode_token
 from app.models.user import User
 
-security = HTTPBearer()
-
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """현재 인증된 사용자 반환"""
-    token = credentials.credentials
-    payload = decode_token(token)
+    """현재 인증된 사용자 반환 — HttpOnly 쿠키 우선, Bearer 헤더 폴백"""
+    # P3-4: HttpOnly 쿠키에서 access_token 추출
+    token = request.cookies.get("access_token")
+    # Swagger UI 및 API 클라이언트 폴백: Authorization: Bearer <token>
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
 
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="인증이 필요합니다",
+        )
+
+    payload = decode_token(token)
     if payload is None or payload.get("type") != "access":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

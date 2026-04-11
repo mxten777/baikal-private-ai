@@ -4,12 +4,22 @@ Document Service - 파일 업로드, 관리, 비동기 처리
 import os
 import uuid
 import logging
-from typing import List
+from datetime import datetime, timezone
+from typing import List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.document import Document, DocumentChunk
 from app.config import get_settings
 from app.database import async_session
+from app.rag.loader import extract_text, extract_pages
+from app.rag.chunker import (
+    chunk_text, table_chunk_to_nl,
+    split_into_paragraphs, semantic_chunk_with_embeddings,
+    split_table_aware,
+)
+from app.rag.embedder import generate_embeddings
+
+_utcnow = lambda: datetime.now(timezone.utc)
 
 settings = get_settings()
 logger = logging.getLogger("baikal.document")
@@ -28,6 +38,28 @@ MIME_TO_EXT = {
 
 def get_file_extension(filename: str) -> str:
     return filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+
+def _find_chunk_page(chunk_content: str, pages: List[Tuple]) -> Optional[int]:
+    """청크 내용 첫 60자로 어느 페이지에 속하는지 탐색."""
+    if not pages:
+        return None
+    search_key = chunk_content[:60].strip()
+    if not search_key:
+        return None
+    for page_num, page_text in pages:
+        if search_key in page_text:
+            return page_num
+    return None
+
+
+def _detect_source_type(chunk_content: str) -> str:
+    """청크 소스 타입 감지 — 탭 구분 표 비율로 판단."""
+    lines = [ln for ln in chunk_content.split('\n') if ln.strip()]
+    if not lines:
+        return "text"
+    table_lines = sum(1 for ln in lines if '\t' in ln and len(ln.split('\t')) >= 3)
+    return "table" if table_lines >= max(len(lines) * 0.5, 1) else "text"
 
 
 def validate_file(filename: str, content_type: str | None, file_size: int) -> str:
@@ -113,14 +145,6 @@ async def save_uploaded_file(file, user_id: str, db: AsyncSession) -> Document:
 
 async def process_document_async(document_id: str):
     """비동기 문서 처리 (백그라운드 태스크)"""
-    from app.rag.loader import extract_text
-    from app.rag.chunker import (
-        chunk_text, table_chunk_to_nl,
-        split_into_paragraphs, semantic_chunk_with_embeddings,
-        split_table_aware,
-    )
-    from app.rag.embedder import generate_embeddings
-
     async with async_session() as db:
         try:
             # 문서 조회
@@ -152,6 +176,12 @@ async def process_document_async(document_id: str):
                 await db.commit()
                 logger.warning(f"빈 텍스트: {doc.filename}")
                 return
+
+            # 1-b. 페이지별 텍스트 (page_number 추적용)
+            try:
+                doc_pages = extract_pages(doc.filepath, doc.file_type)
+            except Exception:
+                doc_pages = []
 
             # 2. 시맨틱 청킹 (표 영역은 기존 방식 유지)
             chunks = await _semantic_chunk_document(
@@ -193,10 +223,14 @@ async def process_document_async(document_id: str):
                     content=clean_content,
                     nl_content=nl_stored,
                     embedding=embedding,
+                    page_number=_find_chunk_page(clean_content, doc_pages),
+                    source_type=_detect_source_type(clean_content),
                 )
                 db.add(chunk)
 
             doc.status = "completed"
+            doc.chunk_count = len(chunks)     # P3-6 Lineage: 청크 수 기록
+            doc.updated_at = _utcnow()        # P3-6 Lineage: 처리 완료 시각
             await db.commit()
             logger.info(f"문서 처리 완료: {doc.filename} ({len(chunks)} chunks)")
 

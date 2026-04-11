@@ -1,11 +1,13 @@
 """
 Retriever - 하이브리드 검색 (Vector + BM25) + Cross-encoder Reranking
+P3-3: HyDE (Hypothetical Document Embeddings) 고정확도 검색 모드 추가
 """
 import asyncio
 import math
 import logging
+import time
 from functools import lru_cache
-from typing import List
+from typing import List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text as sql_text
 from app.services.llm_service import call_ollama_embedding
@@ -110,19 +112,55 @@ def _mmr_rerank(candidates: List[dict], top_k: int, lambda_val: float = 0.6) -> 
     return selected
 
 
+async def _generate_hyde_document(query: str) -> str:
+    """P3-3: HyDE — 질문에 대한 가상의 답변 문서 생성 (LLM 1차 호출)
+    생성된 문서를 임베딩하면 실제 문서 청크와 공간적으로 더 가까움.
+    """
+    from app.services.llm_service import call_ollama_chat
+    hyde_prompt = [
+        {
+            "role": "system",
+            "content": (
+                "당신은 전문 문서 작성자입니다. "
+                "주어진 질문에 대해 실제 기업 내부 문서에서 발췌한 것처럼 "
+                "간결한 답변 단락(3~5문장)을 작성하세요. "
+                "정확한 정보가 없어도 됩니다. 형식과 어조를 맞추는 것이 목적입니다."
+            ),
+        },
+        {"role": "user", "content": f"질문: {query}"},
+    ]
+    try:
+        return await call_ollama_chat(hyde_prompt)
+    except Exception as e:
+        logger.warning(f"HyDE 문서 생성 실패, 원본 쿼리 사용: {e}")
+        return query
+
+
 async def retrieve_relevant_chunks(
     query: str, db: AsyncSession, top_k: int = None,
-    document_ids: list = None, user_role: str = "user"
-) -> List[dict]:
+    document_ids: list = None, user_role: str = "user",
+    use_hyde: bool = False,
+) -> Tuple[List[dict], dict]:
     """하이브리드 검색 (Vector + BM25) + Cross-encoder Reranking
     document_ids: None이면 접근 가능한 전체 문서, 리스트면 해당 문서만 검색
     user_role: 문서 권한 필터링용
+    반환값: (chunk 목록, 메타데이터 dict)
+      메타데이터: retrieval_ms, reranking_ms, retrieved_chunks, reranked_order
     """
     if top_k is None:
         top_k = settings.TOP_K
 
-    # 1단계: 질문 임베딩
-    embeddings = await call_ollama_embedding([query])
+    retrieval_start = time.time()
+
+    # P3-3 HyDE: 가상 문서 생성 후 임베딩 (use_hyde=True 시)
+    embedding_text = query
+    if use_hyde:
+        logger.info("HyDE 모드: 가상 답변 문서 생성 중...")
+        embedding_text = await _generate_hyde_document(query)
+        logger.debug(f"HyDE 문서: {embedding_text[:120]}")
+
+    # 1단계: 질문(또는 HyDE 문서) 임베딩
+    embeddings = await call_ollama_embedding([embedding_text])
     query_embedding = embeddings[0]
     embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
 
@@ -147,6 +185,7 @@ async def retrieve_relevant_chunks(
 
     search_query = sql_text(f"""
         SELECT dc.id, dc.content, dc.document_id, dc.chunk_index,
+               dc.page_number, dc.source_type,
                d.filename,
                dc.embedding <=> CAST(:embedding AS vector) AS distance
         FROM document_chunks dc
@@ -162,12 +201,13 @@ async def retrieve_relevant_chunks(
     rows = result.fetchall()
 
     if not rows:
-        return []
+        return [], {"retrieval_ms": int((time.time() - retrieval_start) * 1000), "reranking_ms": 0,
+                    "retrieved_chunks": [], "reranked_order": []}
 
     # 3단계: 유사도 임계값 필터링
     candidates = []
     for row in rows:
-        chunk_id, content, doc_id, chunk_index, filename, distance = row
+        chunk_id, content, doc_id, chunk_index, page_number, source_type, filename, distance = row
         vector_score = round(1 - distance, 4)
         if vector_score >= settings.SIMILARITY_THRESHOLD:
             candidates.append({
@@ -176,11 +216,14 @@ async def retrieve_relevant_chunks(
                 "document_id": doc_id,
                 "chunk_index": chunk_index,
                 "filename": filename,
+                "page_number": page_number,
+                "source_type": source_type,
                 "vector_score": vector_score,
             })
 
     if not candidates:
-        return []
+        return [], {"retrieval_ms": int((time.time() - retrieval_start) * 1000), "reranking_ms": 0,
+                    "retrieved_chunks": [], "reranked_order": []}
 
     # 4단계: BM25 점수 계산
     query_tokens = _tokenize(query)
@@ -211,7 +254,17 @@ async def retrieve_relevant_chunks(
     # 7단계: MMR 후 최종 점수 하한 필터 (관련 없는 청크 제거)
     mmr_results = [r for r in mmr_results if r["hybrid_score"] >= settings.MIN_HYBRID_SCORE]
 
+    # 검색단계 완료 — retrieval_ms 확정
+    retrieval_ms = int((time.time() - retrieval_start) * 1000)
+
+    # 검색 단계 결과 기록 (KPI: retrieved_chunks)
+    retrieved_chunks_meta = [
+        {"chunk_id": r["chunk_id"], "score": r["hybrid_score"], "rank": i + 1}
+        for i, r in enumerate(mmr_results)
+    ]
+
     # 8단계: Cross-encoder Reranking (MMR 결과를 정밀 재정렬)
+    reranking_start = time.time()
     cross_encoder = _get_cross_encoder()
     if cross_encoder is not None and mmr_results:
         try:
@@ -246,5 +299,14 @@ async def retrieve_relevant_chunks(
             f"(벡터70%+BM25 30%)"
         )
 
-    return final_results
+    reranking_ms = int((time.time() - reranking_start) * 1000)
+    reranked_order = [r["chunk_id"] for r in final_results]
+
+    meta = {
+        "retrieval_ms": retrieval_ms,
+        "reranking_ms": reranking_ms,
+        "retrieved_chunks": retrieved_chunks_meta,
+        "reranked_order": reranked_order,
+    }
+    return final_results, meta
 

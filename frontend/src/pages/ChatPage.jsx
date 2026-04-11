@@ -114,7 +114,7 @@ export default function ChatPage() {
           fullAnswer += event.content;
           setMessages((prev) => prev.map((m) => m.id === streamingMsgId ? { ...m, content: fullAnswer } : m));
         } else if (event.type === 'done') {
-          setMessages((prev) => prev.map((m) => m.id === streamingMsgId ? { ...m, content: fullAnswer || event.content, sources: { documents: sources }, confidence_score: event.confidence_score } : m));
+          setMessages((prev) => prev.map((m) => m.id === streamingMsgId ? { ...m, content: fullAnswer || event.content, sources: { documents: sources }, confidence_score: event.confidence_score, id: event.message_id || streamingMsgId } : m));
         } else if (event.type === 'error') {
           toast.error(event.content || 'AI 응답 오류');
           setMessages((prev) => prev.filter((m) => m.id !== streamingMsgId));

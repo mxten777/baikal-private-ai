@@ -72,7 +72,7 @@ Docker Compose version v2.x.x
 
 ```powershell
 cd c:\baikal777\baikal-private-ai
-docker compose -f docker compose.cpu.yml build
+docker compose -f docker-compose.cpu.yml build
 ```
 
 완료 시 출력:
@@ -88,7 +88,7 @@ Successfully tagged baikal-private-ai-frontend:latest
 
 ```powershell
 # 컨테이너 먼저 시작
-docker compose -f docker compose.cpu.yml up -d ollama
+docker compose -f docker-compose.cpu.yml up -d ollama
 
 # LLM 모델 (4.7 GB)
 docker exec baikal-ollama ollama pull qwen2.5:7b
@@ -150,7 +150,7 @@ Win + X  →  "Windows PowerShell" 또는 "터미널" 클릭
 
 ```powershell
 cd c:\baikal777\baikal-private-ai
-docker compose -f docker compose.cpu.yml up -d
+docker compose -f docker-compose.cpu.yml up -d
 ```
 
 기대 출력:
@@ -483,13 +483,13 @@ RAG 시스템 평가
 
 ```powershell
 cd c:\baikal777\baikal-private-ai
-docker compose -f docker compose.cpu.yml stop
+docker compose -f docker-compose.cpu.yml stop
 ```
 
 ### 다음 번 재시작
 
 ```powershell
-docker compose -f docker compose.cpu.yml up -d
+docker compose -f docker-compose.cpu.yml up -d
 ```
 
 > 볼륨(postgres_data, ollama_data, upload_data)에 모든 데이터가 유지됩니다.  
@@ -499,10 +499,10 @@ docker compose -f docker compose.cpu.yml up -d
 
 ```powershell
 # 컨테이너+네트워크 삭제 (볼륨은 유지)
-docker compose -f docker compose.cpu.yml down
+docker compose -f docker-compose.cpu.yml down
 
 # 볼륨까지 삭제 (데이터 완전 초기화 — 주의!)
-docker compose -f docker compose.cpu.yml down -v
+docker compose -f docker-compose.cpu.yml down -v
 ```
 
 ---
@@ -588,7 +588,7 @@ docker restart baikal-nginx
 │  □ Docker Desktop 초록불 확인                    │
 │  □ PowerShell 열기                              │
 │  □ cd c:\baikal777\baikal-private-ai            │
-│  □ docker compose -f docker compose.cpu.yml     │
+│  □ docker compose -f docker-compose.cpu.yml     │
 │      up -d                                      │
 │  □ 30초 대기                                    │
 │  □ Invoke-RestMethod http://localhost/api/health │

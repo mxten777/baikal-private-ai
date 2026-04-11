@@ -1,6 +1,7 @@
 """
 Security - JWT & Password Hashing
 """
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import jwt, JWTError
@@ -29,11 +30,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def create_refresh_token(data: dict) -> str:
+def create_refresh_token(data: dict) -> tuple[str, str]:
+    """Refresh 토큰 생성. 반환: (token, jti)"""
+    jti = str(uuid.uuid4())
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire, "type": "refresh"})
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    to_encode.update({"exp": expire, "type": "refresh", "jti": jti})
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM), jti
 
 
 def decode_token(token: str) -> Optional[dict]:

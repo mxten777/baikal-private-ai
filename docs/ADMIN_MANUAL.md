@@ -1,7 +1,7 @@
 # BAIKAL Private AI — 관리자 매뉴얼
 
-> **문서 버전**: 1.0  
-> **최종 수정일**: 2026-02-27  
+> **문서 버전**: 1.2  
+> **최종 수정일**: 2026-04-07  
 > **대상 독자**: 시스템 관리자, IT 운영팀
 
 ---
@@ -36,11 +36,11 @@ BAIKAL Private AI는 **폐쇄망(에어갭) 환경**에서 운영 가능한 **�
 
 | 구성요소 | 역할 | 포트 |
 |----------|------|------|
-| **Nginx** | 리버스 프록시, 정적 파일 서빙 | 80 |
-| **Frontend** | React 웹 애플리케이션 | 3000 (내부) |
-| **Backend** | FastAPI REST API 서버 | 8000 |
-| **PostgreSQL** | 데이터베이스 + 벡터 검색(pgvector) | 5432 |
-| **Ollama** | 로컬 LLM 및 임베딩 엔진 | 11434 |
+| **Nginx** | 리버스 프록시, 정적 파일 서빙 | 80 (외부 노출) |
+| **Frontend** | React 웹 애플리케이션 | 3000 (내부 전용) |
+| **Backend** | FastAPI REST API 서버 | 8000 (내부 전용) |
+| **PostgreSQL** | 데이터베이스 + 벡터 검색(pgvector) | 5432 (내부 전용) |
+| **Ollama** | 로컬 LLM 및 임베딩 엔진 | 11434 (내부 전용) |
 
 ### 1.3 시스템 구조도
 
@@ -71,13 +71,15 @@ BAIKAL Private AI는 **폐쇄망(에어갭) 환경**에서 운영 가능한 **�
 ### 1.4 데이터 흐름
 
 1. 사용자가 문서를 업로드합니다
-2. Backend가 텍스트를 추출하고 500자 단위로 청킹합니다
-3. Ollama(bge-m3)가 각 청크를 1024차원 벡터로 임베딩합니다
-4. 벡터가 PostgreSQL(pgvector)에 저장됩니다
-5. 사용자가 질문하면, 질문도 벡터로 변환됩니다
-6. 코사인 유사도로 관련 문서 청크 Top-5를 검색합니다
-7. 검색된 컨텍스트 + 질문을 LLM(qwen2.5:7b)에 전달합니다
-8. LLM이 한국어로 답변을 생성하여 실시간 스트리밍합니다
+2. Backend가 텍스트를 추출합니다 (PDF/DOCX/XLSX/HWP/HWPX, 스캔 PDF는 Tesseract OCR 자동 폴백)
+3. 일반 텍스트는 **시맨틱 청킹** (bge-m3 임베딩 유사도 기반 의미 경계 탐지), 표 영역은 헤더 반복 청킹
+4. Ollama(bge-m3)가 각 청크를 1024차원 벡터로 임베딩합니다
+5. 벡터가 PostgreSQL(pgvector)에 저장됩니다
+6. 사용자가 질문하면, 질문도 벡터로 변환됩니다
+7. 벡터(70%) + BM25(30%) 하이브리드 검색 → MMR 다양성 필터 → **Cross-encoder 정밀 재정렬** → Top-5 선택
+8. 검색된 컨텍스트 + 질문을 LLM(qwen2.5:7b)에 전달합니다
+9. LLM이 한국어로 답변을 생성하여 실시간 스트리밍합니다
+10. 질의·응답·신뢰도·지연시간이 QueryLog DB에 저장됩니다
 
 ---
 
@@ -112,7 +114,7 @@ BAIKAL Private AI는 **폐쇄망(에어갭) 환경**에서 운영 가능한 **�
 
 - **인터넷 환경**: 초기 설치 시 Docker 이미지 및 AI 모델 다운로드 필요 (약 12GB)
 - **폐쇄망 환경**: USB 또는 내부 네트워크를 통한 오프라인 이미지 전송 필요
-- **내부 포트**: 80(웹), 5432(DB), 8000(API), 11434(Ollama) 사용
+- **외부 노출 포트**: 80(웹)만 외부에 노출 — PostgreSQL(5432), Ollama(11434), Backend(8000)은 Docker 내부 네트워크 전용
 
 ---
 
@@ -229,7 +231,7 @@ chmod +x scripts/setup.sh
 | `LLM_MODEL` | qwen2.5:7b | LLM 모델명 | 선택 |
 | `EMBEDDING_MODEL` | bge-m3 | 임베딩 모델명 | 선택 |
 | `DEFAULT_ADMIN_USERNAME` | admin | 초기 관리자 ID | 선택 |
-| `DEFAULT_ADMIN_PASSWORD` | admin1234 | 초기 관리자 비밀번호 | **필수** |
+| `DEFAULT_ADMIN_PASSWORD` | Baikal@2026! | 초기 관리자 비밀번호 | **필수** |
 | `UPLOAD_DIR` | /app/uploads | 업로드 파일 저장 경로 | 선택 |
 | `MAX_UPLOAD_SIZE_MB` | 100 | 최대 업로드 크기(MB) | 선택 |
 | `CHUNK_SIZE` | 500 | 텍스트 청킹 크기(자) | 선택 |
@@ -245,7 +247,7 @@ chmod +x scripts/setup.sh
 SECRET_KEY=Xk9m2PqR7wLz4vNc8jT1aB5dG0hY6eKfW3iU0rS9bN2mQ4p
 
 # 2. 관리자 비밀번호 - 강력한 비밀번호
-DEFAULT_ADMIN_PASSWORD=MyStr0ng!P@ssw0rd
+DEFAULT_ADMIN_PASSWORD=Baikal@2026!
 
 # 3. DB 비밀번호
 POSTGRES_PASSWORD=Db$ecure_P@ss_2024
@@ -332,14 +334,14 @@ baikal-nginx       Up             80:80
 1. 브라우저에서 `http://서버IP` (또는 `http://localhost`) 접속
 2. 기본 관리자 계정으로 로그인:
    - **ID**: `admin`
-   - **비밀번호**: `admin1234` (또는 `.env`에 설정한 값)
+   - **비밀번호**: `Baikal@2026!` (또는 `.env`에 설정한 값)
 
 ### 6.2 관리자 비밀번호 변경 (필수!)
 
 1. 로그인 후 좌측 사이드바 하단의 사용자 프로필 영역에 마우스를 올립니다
 2. **열쇠 아이콘(🔑)** 을 클릭합니다
 3. 비밀번호 변경 모달에서:
-   - 현재 비밀번호: `admin1234`
+   - 현재 비밀번호: `Baikal@2026!`
    - 새 비밀번호: 4자 이상의 안전한 비밀번호 입력
    - 비밀번호 확인: 새 비밀번호 재입력
 4. **"비밀번호 변경"** 버튼 클릭
@@ -372,14 +374,14 @@ baikal-nginx       Up             80:80
 2. 필수 정보 입력:
    - **사용자명**: 영문/숫자 조합 (중복 불가)
    - **비밀번호**: 4자 이상
-   - **역할**: `사용자` 또는 `관리자`
+   - **역할**: `사용자`, `매니저`, 또는 `관리자`
 3. **"생성"** 클릭 → 즉시 활성화
 
 ### 7.3 사용자 수정
 
 사용자 테이블에서 해당 사용자의 행에 있는 수정 옵션을 사용합니다:
 
-- **역할 변경**: `사용자` ↔ `관리자` 전환 가능
+- **역할 변경**: `사용자` ↔ `매니저` ↔ `관리자` 전환 가능
 - **비밀번호 초기화**: 새 비밀번호 설정 가능
 - **계정 비활성화**: 비활성화 시 로그인 불가 (데이터는 보존)
 
@@ -391,17 +393,18 @@ baikal-nginx       Up             80:80
 
 ### 7.5 역할 권한 비교
 
-| 기능 | 일반 사용자 | 관리자 |
-|------|:-----------:|:------:|
-| AI 질문응답 | ✅ | ✅ |
-| 문서 업로드 | ✅ | ✅ |
-| 본인 문서 조회 | ✅ | ✅ |
-| 전체 문서 조회 | ❌ | ✅ |
-| 문서 삭제 | ❌ | ✅ |
-| 문서 검색 | ✅ | ✅ |
-| 채팅 세션 관리 | ✅ (본인) | ✅ (본인) |
-| 사용자 관리 | ❌ | ✅ |
-| 비밀번호 변경 | ✅ (본인) | ✅ (본인) |
+| 기능 | 일반 사용자 | 매니저 | 관리자 |
+|------|:-----------:|:------:|:------:|
+| AI 질문응답 | ✅ | ✅ | ✅ |
+| 문서 업로드 | ✅ | ✅ | ✅ |
+| 본인 문서 조회 | ✅ | ✅ | ✅ |
+| 전체 문서 조회 | ❌ | ✅ | ✅ |
+| 문서 삭제 | ❌ | ✅ (본인) | ✅ |
+| 문서 검색 | ✅ | ✅ | ✅ |
+| 채팅 세션 관리 | ✅ (본인) | ✅ (본인) | ✅ (본인) |
+| 사용자 관리 | ❌ | ❌ | ✅ |
+| 비밀번호 변경 | ✅ (본인) | ✅ (본인) | ✅ (본인) |
+| 쿼리 로그 조회 | ❌ | ❌ | ✅ |
 
 ---
 
@@ -416,12 +419,13 @@ baikal-nginx       Up             80:80
 
 | 형식 | 확장자 | 텍스트 추출 방법 |
 |------|--------|-----------------|
-| PDF | .pdf | PyPDF2 라이브러리 |
+| PDF | .pdf | PyPDF2 + OCR 자동 폴백 (Tesseract) |
 | Word | .docx | python-docx 라이브러리 |
 | Excel | .xlsx | openpyxl 라이브러리 |
+| 한글 | .hwp, .hwpx | pyhwp 라이브러리 |
 
 - **최대 파일 크기**: 100MB (.env의 `MAX_UPLOAD_SIZE_MB`로 조정 가능)
-- **이미지 전용 PDF**: 텍스트 추출이 제한적입니다 (OCR 미지원)
+- **스캔 PDF (이미지 전용)**: 페이지당 30자 미만이면 OCR(Tesseract 5, 한국어+영어)로 자동 처리합니다
 
 ### 8.3 문서 처리 상태
 
@@ -766,11 +770,11 @@ curl http://localhost:11434/api/tags
 docker exec -it baikal-postgres psql -U baikal -d baikal_ai
 ```
 ```sql
--- 비밀번호를 'admin1234'로 초기화 (bcrypt 해시)
-UPDATE users SET password_hash = '$2b$12$LJ3m4ys7Ot0IhVHoOVJQr.Bn7XCq3fCJj6OUoGFpM5N2JwPVPqFsK'
+-- 비밀번호를 'Baikal@2026!'로 초기화 (bcrypt 해시)
+UPDATE users SET password_hash = '$2b$12$MGSs7t/zoS79aXClK/b96O5AmrMRZpT4eSg1LT4ES6.dGWmDI5a6a'
 WHERE username = 'admin';
 ```
-> **참고**: 위 해시는 예시입니다. 실제로는 Python에서 `from passlib.context import CryptContext; CryptContext(schemes=["bcrypt"]).hash("admin1234")` 로 생성한 해시를 사용하세요.
+> **참고**: 위 해시는 예시입니다. 실제로는 Python에서 `from passlib.context import CryptContext; CryptContext(schemes=["bcrypt"]).hash("Baikal@2026!")` 로 생성한 해시를 사용하세요.
 
 ### 13.5 성능 저하
 
