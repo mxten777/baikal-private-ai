@@ -1,8 +1,8 @@
 # BAIKAL Private AI — ISP 검토 기반 개선 계획서
 
-> **작성일**: 2026-04-08  
+> **작성일**: 2026-04-08 | **최종 업데이트**: 2026-04-12  
 > **기반 자료**: 外 ISP/컨설팅 검토 의견 (1차: 사업/기술 구조 평가 + 2차: RAG KPI Dashboard 설계)  
-> **현재 완성도**: 기능 92% · 상용화 준비도 82% (2차 개선 완료 기준)
+> **현재 완성도**: 기능 **100%** · 상용화 준비도 **95%** (Phase 1~3 전체 + P3-3 HyDE 완료 기준)
 
 ---
 
@@ -125,40 +125,40 @@ click_source_flag  — 출처 원문 클릭 여부 (Source Click-through Rate)
 
 ## 3. 개선 방안 전체 목록
 
-### 🔴 Phase 1 — 즉시 착수 (1~2주)
+### 🔴 Phase 1 — ✅ 완료
 
 | ID | 분류 | 개선 항목 | 구현 위치 | 효과 |
 |----|------|-----------|-----------|------|
-| P1-1 | **로그 확장** | `query_logs` 에 9개 필드 추가 + Alembic 마이그레이션 | `models/document.py` + `alembic/versions/` | KPI 전체 산출 기반 확보 |
-| P1-2 | **로그 수집** | RAG 서비스에서 `retrieved_chunks`, `reranked_order`, `cited_sources`, `retrieval_ms`, `reranking_ms`, `llm_ms` 기록 | `services/rag_service.py` | Precision@K, Reranking Lift, 단계별 지연시간 |
-| P1-3 | **사용자 피드백** | 답변 하단 👍👎 버튼 추가, `/api/chat/feedback` 엔드포인트 | `api/chat.py` + `ChatMessage.jsx` | Answer Acceptance Rate, Query Success Rate proxy |
-| P1-4 | **출처 클릭 트래킹** | 출처 배지 클릭 시 `/api/chat/source-click` 이벤트 기록 | `api/chat.py` + `ChatMessage.jsx` | Source Click-through Rate |
-| P1-5 | **신뢰도 배지 강화** | confidence < 0.4 시 "근거 부족" 경고 배지, 스타일 변경 | `ChatMessage.jsx` | 신뢰 UX — 저신뢰도 경고 |
+| P1-1 | **로그 확장** | `query_logs` 에 9개 필드 추가 + Alembic 마이그레이션 ✅ | `models/document.py` + `alembic/versions/0003` | KPI 전체 산출 기반 확보 |
+| P1-2 | **로그 수집** | RAG 서비스에서 `retrieved_chunks`, `reranked_order`, `cited_sources`, `retrieval_ms`, `reranking_ms`, `llm_ms` 기록 ✅ | `services/rag_service.py` | Precision@K, Reranking Lift, 단계별 지연시간 |
+| P1-3 | **사용자 피드백** | 답변 하단 👍👎 버튼 추가, `/api/chat/feedback` 엔드포인트 ✅ | `api/chat.py` + `ChatMessage.jsx` | Answer Acceptance Rate, Query Success Rate proxy |
+| P1-4 | **출처 클릭 트래킹** | 출처 배지 클릭 시 `/api/chat/source-click` 이벤트 기록 ✅ | `api/chat.py` + `ChatMessage.jsx` | Source Click-through Rate |
+| P1-5 | **신뢰도 배지 강화** | confidence < 0.4 시 "근거 부족" 경고 배지, 스타일 변경 ✅ | `ChatMessage.jsx` | 신뢰 UX — 저신뢰도 경고 |
 
-### 🟠 Phase 2 — 단기 (1개월 내)
-
-| ID | 분류 | 개선 항목 | 구현 위치 | 효과 |
-|----|------|-----------|-----------|------|
-| P2-1 | **KPI 대시보드 UI** | 시스템 설정 페이지를 5탭 대시보드로 확장 (Executive / Retrieval / Answer Trust / Operations / Governance) | `pages/admin/SettingsPage.jsx` | ISP 납품형 경영 대시보드 |
-| P2-2 | **응답 단계별 지연시간 차트** | 검색/Reranking/LLM 분리 스택 차트 | `SettingsPage.jsx` | 병목 구간 시각화 |
-| P2-3 | **답변 신뢰도 분포 차트** | High/Medium/Low 구간별 질의 비율 파이 차트 | `SettingsPage.jsx` | Answer Trust 시각화 |
-| P2-4 | **User 모델에 department 필드 추가** | 부서별 사용 통계 지원 | `models/user.py` + 마이그레이션 | 부서별 도입률 KPI |
-| P2-5 | **문서 페이지 번호 저장** | 청킹 시 `page_number` 필드 기록 | `models/document.py` + `rag/chunker.py` | 신뢰 UX — 원본 위치 표시 |
-| P2-6 | **신뢰 UX 하이라이트** | 답변 내 인용 문장과 청크 원문 간 매칭 하이라이트 표시 | `ChatMessage.jsx` | 컨설팅 3.3 직접 대응 |
-| P2-7 | **Active User Rate KPI** | 최근 7일/30일 활성 사용자 수/비율 산출 API | `api/admin.py` | User Adoption 축 |
-
-### 🔵 Phase 3 — 중기 (3개월 내)
+### 🟠 Phase 2 — ✅ 완료
 
 | ID | 분류 | 개선 항목 | 구현 위치 | 효과 |
 |----|------|-----------|-----------|------|
-| P3-1 | **Guardrail Engine** | 비관련/유해 질문 선제 차단 레이어, Policy Violation Count 기록 | `services/rag_service.py` | Control Plane 구현 |
-| P3-2 | **평가 스크립트** | Precision@K, MRR, nDCG@K 자동 산출 테스트셋 | `scripts/eval_rag.py` | RAG 품질 정량 측정 체계 |
-| P3-3 | **HyDE 검색 모드** | 배치/분석용 고정확도 모드 (LLM 2회 호출 옵션) | `rag/retriever.py` | 검색 정확도 향상 |
-| P3-4 | **JWT HttpOnly 쿠키 전환** | localStorage → HttpOnly Cookie (XSS 방어) | `api/auth.py` + `api/client.js` | 보안 강화 (#14) |
-| P3-5 | **Refresh Token 폐기** | 탈취된 토큰 무효화 (DB 블랙리스트) | `services/auth_service.py` | Zero Trust 대응 (#23) |
-| P3-6 | **Document Lineage** | 업로드자·수정일·파생 청크 수 계보 추적 | `models/document.py` | Knowledge Layer 완성 |
-| P3-7 | **테스트 코드** | pytest (백엔드 핵심 API) + jest (프론트 주요 컴포넌트) | `tests/` | 납품 품질 기준 (#22) |
-| P3-8 | **멀티모달** | 차트·도표 이미지 내용 추출 (qwen2.5-vl 연동) | `rag/loader.py` | 고급 문서 처리 |
+| P2-1 | **KPI 대시보드 UI** | 시스템 설정 페이지를 5탭 대시보드로 확장 (Executive / Retrieval / Answer Trust / Operations / Governance) ✅ | `pages/admin/SettingsPage.jsx` | ISP 납품형 경영 대시보드 |
+| P2-2 | **응답 단계별 지연시간 차트** | 검색/Reranking/LLM 분리 스택 차트 ✅ | `SettingsPage.jsx` | 병목 구간 시각화 |
+| P2-3 | **답변 신뢰도 분포 차트** | High/Medium/Low 구간별 질의 비율 파이 차트 ✅ | `SettingsPage.jsx` | Answer Trust 시각화 |
+| P2-4 | **User 모델에 department 필드 추가** | 부서별 사용 통계 지원 ✅ | `models/user.py` + `alembic/versions/0005` | 부서별 도입률 KPI |
+| P2-5 | **문서 페이지 번호 저장** | 청킹 시 `page_number` 필드 기록 ✅ | `models/document.py` + `rag/chunker.py` + `alembic/versions/0004` | 신뢰 UX — 원본 위치 표시 |
+| P2-6 | **신뢰 UX 하이라이트** | 답변 내 인용 문장과 청크 원문 간 매칭 하이라이트 표시 ✅ | `ChatMessage.jsx` | 컨설팅 3.3 직접 대응 |
+| P2-7 | **Active User Rate KPI** | 최근 7일/30일 활성 사용자 수/비율 산출 API ✅ | `api/admin.py` | User Adoption 축 |
+
+### 🔵 Phase 3 — ✅ 완료
+
+| ID | 분류 | 개선 항목 | 구현 위치 | 효과 |
+|----|------|-----------|-----------|------|
+| P3-1 | **Guardrail Engine** | 비관련/유해 질문 선제 차단 레이어, Policy Violation Count 기록 ✅ | `services/guardrail_service.py` | Control Plane 구현 |
+| P3-2 | **평가 스크립트** | Precision@K, MRR, nDCG@K 자동 산출 테스트셋 ✅ | `scripts/eval_rag.py` | RAG 품질 정량 측정 체계 |
+| P3-3 | **HyDE 검색 모드** | 배치/분석용 고정확도 모드 (LLM 2회 호출 옵션) ✅ | `rag/retriever.py` + UI 토글 버튼 | 검색 정확도 향상 |
+| P3-4 | **JWT HttpOnly 쿠키 전환** | localStorage → HttpOnly Cookie (XSS 방어) ✅ | `api/auth.py` + `api/client.js` | 보안 강화 |
+| P3-5 | **Refresh Token 폐기** | 탈취된 토큰 무효화 (DB 블랙리스트) ✅ | `services/auth_service.py` + `alembic/versions/0006` | Zero Trust 대응 |
+| P3-6 | **Document Lineage** | 업로드자·수정일·파생 청크 수 계보 추적 ✅ | `models/document.py` + `alembic/versions/0007` | Knowledge Layer 완성 |
+| P3-7 | **테스트 코드** | pytest (백엔드 핵심 API) + jest (프론트 주요 컴포넌트) ✅ | `tests/` + `__tests__/` | 납품 품질 기준 |
+| P3-8 | **멀티모달** | 차트·도표 이미지 내용 추출 (qwen2.5-vl 연동) ✅ | `rag/loader.py` | 고급 문서 처리 |
 
 ---
 
@@ -408,4 +408,4 @@ IAM | Audit Trail | ISMS-P | Zero Trust
 ---
 
 > **문서 끝** | BAIKAL Private AI ISP 개선 계획서  
-> 다음 업데이트 예정: Phase 1 완료 시점 (약 2주 후)
+> **최종 업데이트**: 2026-04-12 — Phase 1 · 2 · 3 전체 완료 (P3-3 HyDE 포함, 총 20개 항목 구현 완료)
