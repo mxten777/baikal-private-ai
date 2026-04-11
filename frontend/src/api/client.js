@@ -29,8 +29,10 @@ client.interceptors.response.use(
         await axios.post(`${API_BASE}/auth/refresh`, {}, { withCredentials: true });
         return client(originalRequest);
       } catch {
-        // 리프레시 실패 → 로그아웃
-        window.location.href = '/login';
+        // 리프레시 실패 → 로그인 페이지로 (이미 /login 이면 무시)
+        if (!window.location.pathname.startsWith('/login')) {
+          window.location.replace('/login');
+        }
       }
     }
 
