@@ -1,6 +1,8 @@
 """
 Document Service - 파일 업로드, 관리, 비동기 처리
 """
+import asyncio
+import functools
 import os
 import uuid
 import logging
@@ -11,7 +13,7 @@ from sqlalchemy import select
 from app.models.document import Document, DocumentChunk
 from app.config import get_settings
 from app.database import async_session
-from app.rag.loader import extract_text, extract_pages
+from app.rag.loader import extract_text, extract_pages, extract_pdf_with_vision, extract_docx_with_vision
 from app.rag.chunker import (
     chunk_text, table_chunk_to_nl,
     split_into_paragraphs, semantic_chunk_with_embeddings,
@@ -160,9 +162,22 @@ async def process_document_async(document_id: str):
 
             logger.info(f"문서 처리 시작: {doc.filename}")
 
-            # 1. 텍스트 추출
+            # 1. 텍스트 추출 (P3-8: PDF/DOCX는 비전 모델 우선 시도)
+            # 동기 함수들은 run_in_executor로 실행하여 이벤트 루프 블로킹 방지
+            loop = asyncio.get_event_loop()
             try:
-                text = extract_text(doc.filepath, doc.file_type)
+                if doc.file_type == "pdf":
+                    text = await loop.run_in_executor(
+                        None, extract_pdf_with_vision, doc.filepath
+                    )
+                elif doc.file_type == "docx":
+                    text = await loop.run_in_executor(
+                        None, extract_docx_with_vision, doc.filepath
+                    )
+                else:
+                    text = await loop.run_in_executor(
+                        None, extract_text, doc.filepath, doc.file_type
+                    )
             except Exception as e:
                 doc.status = "failed"
                 doc.error_message = f"텍스트 추출 실패: {str(e)[:200]}"
@@ -179,7 +194,9 @@ async def process_document_async(document_id: str):
 
             # 1-b. 페이지별 텍스트 (page_number 추적용)
             try:
-                doc_pages = extract_pages(doc.filepath, doc.file_type)
+                doc_pages = await loop.run_in_executor(
+                    None, extract_pages, doc.filepath, doc.file_type
+                )
             except Exception:
                 doc_pages = []
 

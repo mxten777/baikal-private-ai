@@ -126,14 +126,17 @@ check("GET /api/documents (비인증) -> 401/403", r.status_code in (401, 403),
 section("5. 문서 업로드")
 
 # 유효한 최소 PDF (외부 라이브러리 불필요)
+# 텍스트가 OCR_MIN_TEXT_PER_PAGE(30자) 이상이어야 비전 모델 우회
+_pdf_stream = b"BT /F1 12 Tf 100 700 Td (BAIKAL Private AI API Test Document 2026) Tj ET\n"
+_stream_len = len(_pdf_stream)
 pdf_bytes = (
     b"%PDF-1.4\n"
     b"1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
     b"2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
     b"3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R"
     b"/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n"
-    b"4 0 obj<</Length 52>>stream\n"
-    b"BT /F1 12 Tf 100 700 Td (BAIKAL API Test PDF) Tj ET\n"
+    b"4 0 obj<<" + b"/Length " + str(_stream_len).encode() + b">>stream\n"
+    + _pdf_stream +
     b"endstream\nendobj\n"
     b"5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n"
     b"xref\n0 6\n"
@@ -157,8 +160,8 @@ upload_ok = check("POST /api/documents/upload -> 200/201",
 upload_doc_id = r.json().get("id") if upload_ok else None
 
 if upload_doc_id:
-    print("      문서 처리 대기 중 (최대 30초)...")
-    for i in range(15):
+    print("      문서 처리 대기 중 (최대 180초, 비전 모델 CPU 처리 포함)...")
+    for i in range(90):
         time.sleep(2)
         r2 = admin_client.get(f"/api/documents/{upload_doc_id}/status",
             timeout=TIMEOUT)
