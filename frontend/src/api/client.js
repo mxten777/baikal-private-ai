@@ -95,18 +95,18 @@ export const chatAPI = {
   createSession: (title) =>
     client.post('/chat/sessions', { title: title || '새 대화' }),
   messages: (sessionId) => client.get(`/chat/sessions/${sessionId}/messages`),
-  ask: (sessionId, question, documentIds = null) =>
-    client.post('/chat/ask', { session_id: sessionId, question, document_ids: documentIds }),
+  ask: (sessionId, question, documentIds = null, useHyde = false) =>
+    client.post('/chat/ask', { session_id: sessionId, question, document_ids: documentIds, use_hyde: useHyde }),
   deleteSession: (id) => client.delete(`/chat/sessions/${id}`),
 
   // 스트리밍 질문응답
-  askStream: async function* (sessionId, question, documentIds = null) {
+  askStream: async function* (sessionId, question, documentIds = null, useHyde = false) {
     // P3-4: SSE는 Axios 인터셉터를 우회하므로 credentials 직접 설정
     const doFetch = () => fetch(`${API_BASE}/chat/ask/stream`, {
       method: 'POST',
       credentials: 'include', // HttpOnly 쿠키 자동 전송
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sessionId, question, document_ids: documentIds }),
+      body: JSON.stringify({ session_id: sessionId, question, document_ids: documentIds, use_hyde: useHyde }),
     });
 
     let response = await doFetch();

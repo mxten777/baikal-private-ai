@@ -47,7 +47,8 @@ async def _get_chat_history(session_id: str, db: AsyncSession) -> list[dict]:
 
 async def ask_question(
     question: str, session_id: str, user_id: str, db: AsyncSession,
-    document_ids: list = None, user_role: str = "user"
+    document_ids: list = None, user_role: str = "user",
+    use_hyde: bool = False,
 ) -> dict:
     """RAG 기반 질문응답"""
     start_time = time.time()
@@ -85,7 +86,7 @@ async def ask_question(
 
     # 2. RAG 컨텍스트 생성 (_build_rag_context 활용, 중복 로직 제거)
     context, sources, confidence_score, retriever_meta = await _build_rag_context(
-        question, db, document_ids=document_ids, user_role=user_role
+        question, db, document_ids=document_ids, user_role=user_role, use_hyde=use_hyde
     )
 
     # 3. 대화 히스토리 가져오기
@@ -160,13 +161,14 @@ async def ask_question(
 
 async def _build_rag_context(
     question: str, db: AsyncSession,
-    document_ids: list = None, user_role: str = "user"
+    document_ids: list = None, user_role: str = "user",
+    use_hyde: bool = False,
 ) -> tuple[str, list, float, dict]:
     """질문에 대한 RAG 컨텍스트 생성 (retriever 사용)
     반환: (context, sources, confidence_score, retriever_meta)
     """
     chunks, retriever_meta = await retrieve_relevant_chunks(
-        question, db, document_ids=document_ids, user_role=user_role
+        question, db, document_ids=document_ids, user_role=user_role, use_hyde=use_hyde
     )
 
     context_parts = []
@@ -202,7 +204,8 @@ async def _build_rag_context(
 
 async def ask_question_stream(
     question: str, session_id: str, user_id: str, db: AsyncSession,
-    document_ids: list = None, user_role: str = "user"
+    document_ids: list = None, user_role: str = "user",
+    use_hyde: bool = False,
 ) -> AsyncGenerator[dict, None]:
     """RAG 기반 질문응답 (스트리밍)"""
     start_time = time.time()
@@ -241,7 +244,7 @@ async def ask_question_stream(
 
     # RAG 컨텍스트 생성
     context, sources, confidence_score, retriever_meta = await _build_rag_context(
-        question, db, document_ids=document_ids, user_role=user_role
+        question, db, document_ids=document_ids, user_role=user_role, use_hyde=use_hyde
     )
 
     # 소스 먼저 전송

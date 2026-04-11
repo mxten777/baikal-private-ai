@@ -35,6 +35,7 @@ class AskRequest(BaseModel):
     session_id: str
     question: str
     document_ids: Optional[List[str]] = None  # None = 전체 문서
+    use_hyde: bool = False  # P3-3: HyDE 고정확도 검색 모드
 
 
 class AskResponse(BaseModel):

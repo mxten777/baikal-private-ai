@@ -33,6 +33,7 @@ export default function ChatPage() {
   const [documents, setDocuments] = useState([]);
   const [selectedDocIds, setSelectedDocIds] = useState([]);
   const [showDocFilter, setShowDocFilter] = useState(false);
+  const [useHyde, setUseHyde] = useState(false);
 
   useEffect(() => { loadSessions(); loadDocuments(); }, []);
   useEffect(() => { if (activeSession) loadMessages(activeSession); }, [activeSession]);
@@ -108,7 +109,7 @@ export default function ChatPage() {
 
     try {
       setMessages((prev) => [...prev, { role: 'assistant', content: '', sources: null, id: streamingMsgId }]);
-      for await (const event of chatAPI.askStream(sessionId, q, selectedDocIds.length > 0 ? selectedDocIds : null)) {
+      for await (const event of chatAPI.askStream(sessionId, q, selectedDocIds.length > 0 ? selectedDocIds : null, useHyde)) {
         if (event.type === 'sources') { sources = event.sources || []; }
         else if (event.type === 'token') {
           fullAnswer += event.content;
@@ -124,7 +125,7 @@ export default function ChatPage() {
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== streamingMsgId));
       try {
-        const res = await chatAPI.ask(sessionId, q, selectedDocIds.length > 0 ? selectedDocIds : null);
+        const res = await chatAPI.ask(sessionId, q, selectedDocIds.length > 0 ? selectedDocIds : null, useHyde);
         setMessages((prev) => [...prev, { role: 'assistant', content: res.data.answer, sources: { documents: res.data.sources }, confidence_score: res.data.confidence_score, id: res.data.message_id }]);
         loadSessions();
       } catch (fallbackErr) {
@@ -283,7 +284,9 @@ export default function ChatPage() {
                     <div className="pt-0.5">
                       <div className="flex items-center gap-2 mb-2">
                         <HiOutlineArrowPath className="w-3.5 h-3.5 text-baikal-500 animate-spin" />
-                        <span className="text-[12px] text-gray-400 font-medium">분석 및 답변 생성 중...</span>
+                        <span className="text-[12px] text-gray-400 font-medium">
+                          {useHyde ? 'HyDE 고정확도 분석 중...' : '분석 오후 답변 생성 중...'}
+                        </span>
                       </div>
                       <div className="space-y-2">
                         <div className="h-3 bg-white/[0.06] rounded-full w-72 animate-pulse" />
@@ -334,11 +337,24 @@ export default function ChatPage() {
 
             <form onSubmit={handleAsk}>
               <div className="relative flex items-center">
+                {/* HyDE 토글 버튼 - 항상 표시 */}
+                <button
+                  type="button"
+                  onClick={() => setUseHyde(v => !v)}
+                  className={`absolute left-2 p-1.5 rounded-lg transition-all duration-200 ${
+                    useHyde
+                      ? 'text-amber-400 bg-amber-500/20'
+                      : 'text-gray-600 hover:text-gray-400 hover:bg-white/[0.04]'
+                  }`}
+                  title={useHyde ? 'HyDE 중 (클릭하면 일반 모드)' : '일반 모드 (클릭하면 HyDE 고정확도)'}
+                >
+                  <HiOutlineLightBulb className="w-3.5 h-3.5" />
+                </button>
                 {documents.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setShowDocFilter(v => !v)}
-                    className={`absolute left-2 p-1.5 rounded-lg transition-all duration-200 ${
+                    className={`absolute left-9 p-1.5 rounded-lg transition-all duration-200 ${
                       selectedDocIds.length > 0
                         ? 'text-baikal-400 bg-baikal-600/20'
                         : 'text-gray-600 hover:text-gray-400 hover:bg-white/[0.04]'
@@ -358,8 +374,8 @@ export default function ChatPage() {
                   type="text"
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="질문을 입력하세요..."
-                  className={`w-full ${documents.length > 0 ? 'pl-9' : 'pl-4'} pr-12 py-3 bg-white/[0.04] border border-white/[0.06] rounded-xl text-[14px] text-gray-200 placeholder:text-gray-600 focus:outline-none focus:bg-white/[0.06] focus:border-baikal-500/40 focus:ring-2 focus:ring-baikal-500/10 transition-all duration-200`}
+                  placeholder={useHyde ? 'HyDE 모드: 기가복제 답변 생성 후 검색 (더 정확)' : '질문을 입력하세요...'}
+                  className={`w-full ${documents.length > 0 ? 'pl-16' : 'pl-9'} pr-12 py-3 bg-white/[0.04] border ${useHyde ? 'border-amber-500/30 focus:border-amber-500/50 focus:ring-amber-500/10' : 'border-white/[0.06] focus:border-baikal-500/40 focus:ring-baikal-500/10'} rounded-xl text-[14px] text-gray-200 placeholder:text-gray-600 focus:outline-none focus:bg-white/[0.06] focus:ring-2 transition-all duration-200`}
                   disabled={loading}
                 />
                 <button
@@ -370,8 +386,11 @@ export default function ChatPage() {
                   <HiOutlinePaperAirplane className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-center text-[10px] text-gray-600 mt-2 font-medium">
-                BAIKAL AI · 문서 기반 RAG 답변 · 정확하지 않을 수 있습니다
+              <p className="text-center text-[10px] mt-2 font-medium">
+                {useHyde
+                  ? <span className="text-amber-600">💡 HyDE 모드 활성화 — 가상 답변 생성 후 검색 (LLM 2회 호출, 더 정확하나 느림)</span>
+                  : <span className="text-gray-600">BAIKAL AI · 문서 기반 RAG 답변 · 정확하지 않을 수 있습니다</span>
+                }
               </p>
             </form>
           </div>

@@ -104,6 +104,7 @@ async def ask(
             db=db,
             document_ids=request.document_ids,
             user_role=current_user.role,
+            use_hyde=request.use_hyde,
         )
         return result
     except ValueError as e:
@@ -136,6 +137,7 @@ async def ask_stream(
                 db=db,
                 document_ids=request.document_ids,
                 user_role=current_user.role,
+                use_hyde=request.use_hyde,
             ):
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
         except Exception as e:
