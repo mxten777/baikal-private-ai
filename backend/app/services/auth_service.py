@@ -1,11 +1,14 @@
 """
 Auth Service
 """
+import logging
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, text
 from app.models.user import User
 from app.core.security import verify_password, hash_password, create_access_token, create_refresh_token
+
+logger = logging.getLogger(__name__)
 
 
 async def authenticate_user(db: AsyncSession, username: str, password: str) -> User | None:
