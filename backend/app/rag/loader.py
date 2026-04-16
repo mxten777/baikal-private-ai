@@ -458,3 +458,200 @@ def extract_hwpx(filepath: str) -> str:
             except Exception as e:
                 logger.warning(f"HWPX 섹션 파싱 실패 {section_file}: {e}")
     return "\n".join(text_parts)
+
+
+# ---------------------------------------------------------------------------
+# P3-8: 멀티모달 — qwen2.5-vl 이미지 설명 추출
+# ---------------------------------------------------------------------------
+
+_VISION_MODEL = "qwen2.5vl:7b"  # Ollama 비전 모델명
+
+
+def _check_vision_model_available() -> bool:
+    """qwen2.5-vl 모델이 Ollama에 설치됐는지 확인"""
+    try:
+        import httpx
+        resp = httpx.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=5.0)
+        if resp.status_code == 200:
+            models = [m["name"] for m in resp.json().get("models", [])]
+            return any("qwen2.5vl" in m.lower() or "qwen2.5-vl" in m.lower() for m in models)
+    except Exception:
+        pass
+    return False
+
+
+def describe_image(image_bytes: bytes, prompt: str | None = None) -> str:
+    """이미지를 qwen2.5-vl로 분석하여 텍스트 설명 반환 (P3-8).
+
+    qwen2.5-vl 미설치 시 빈 문자열 반환 (graceful fallback).
+    """
+    if not _check_vision_model_available():
+        logger.debug("qwen2.5-vl 미설치 — 이미지 설명 건너뜀")
+        return ""
+
+    import base64
+    import httpx
+
+    if prompt is None:
+        prompt = (
+            "이 이미지에서 차트, 표, 그림, 다이어그램의 내용을 상세하게 한국어로 설명하세요. "
+            "숫자, 제목, 범례, 축 레이블 등 모든 텍스트 정보를 포함해주세요."
+        )
+
+    b64_image = base64.b64encode(image_bytes).decode("utf-8")
+
+    payload = {
+        "model": _VISION_MODEL,
+        "prompt": prompt,
+        "images": [b64_image],
+        "stream": False,
+        "options": {"temperature": 0.1},
+    }
+
+    try:
+        resp = httpx.post(
+            f"{settings.OLLAMA_BASE_URL}/api/generate",
+            json=payload,
+            timeout=120.0,
+        )
+        resp.raise_for_status()
+        description = resp.json().get("response", "").strip()
+        logger.info(f"이미지 설명 추출 완료 ({len(description)}자)")
+        return description
+    except Exception as e:
+        logger.warning(f"이미지 설명 추출 실패: {e}")
+        return ""
+
+
+def extract_pdf_with_vision(filepath: str) -> str:
+    """PDF 텍스트 추출 + 이미지 페이지는 qwen2.5-vl로 분석 (P3-8).
+
+    텍스트가 충분한 페이지: 기존 pdfplumber 추출 유지
+    이미지 중심 페이지 (텍스트 < OCR_MIN_TEXT_PER_PAGE): qwen2.5-vl로 분석
+    qwen2.5-vl 미설치 시: 기존 extract_pdf() 동작과 동일
+    """
+    if not _check_vision_model_available():
+        return extract_pdf(filepath)
+
+    try:
+        import pdfplumber
+        from pdf2image import convert_from_path
+    except ImportError:
+        return extract_pdf(filepath)
+
+    min_chars = settings.OCR_MIN_TEXT_PER_PAGE
+    text_parts = []
+
+    with pdfplumber.open(filepath) as pdf:
+        # 이미지 변환 (전 페이지)
+        try:
+            page_images = convert_from_path(filepath, dpi=150)
+        except Exception:
+            page_images = []
+
+        for i, page in enumerate(pdf.pages):
+            page_num = i + 1
+            try:
+                # 기존 텍스트 추출
+                plain = page.extract_text() or ""
+                tables = page.extract_tables()
+                table_text_parts = []
+                for table in tables:
+                    rows = []
+                    for row in table:
+                        cells = [str(c).strip() if c else "" for c in row]
+                        rows.append("\t".join(cells))
+                    table_text_parts.append("\n".join(rows))
+
+                combined = "\n".join(
+                    ([plain.strip()] if plain.strip() else []) + table_text_parts
+                ).strip()
+
+                if len(combined) >= min_chars:
+                    # 텍스트 충분 — 기존 방식 유지
+                    text_parts.append(combined)
+                elif i < len(page_images):
+                    # 이미지 페이지 — qwen2.5-vl 분석
+                    logger.info(f"PDF 페이지 {page_num}: 텍스트 부족 ({len(combined)}자) → 비전 모델 분석")
+                    import io
+                    img_buf = io.BytesIO()
+                    page_images[i].save(img_buf, format="PNG")
+                    description = describe_image(img_buf.getvalue())
+                    if description:
+                        text_parts.append(f"[페이지 {page_num} 이미지 내용]\n{description}")
+                    elif combined:
+                        text_parts.append(combined)
+                else:
+                    if combined:
+                        text_parts.append(combined)
+
+            except Exception as e:
+                logger.warning(f"PDF 페이지 {page_num} 비전 처리 실패: {e}")
+
+    return "\n\n".join(text_parts)
+
+
+def extract_docx_with_vision(filepath: str) -> str:
+    """DOCX 텍스트 추출 + 삽입 이미지는 qwen2.5-vl로 분석 (P3-8).
+
+    qwen2.5-vl 미설치 시: 기존 extract_docx() 동작과 동일
+    """
+    if not _check_vision_model_available():
+        return extract_docx(filepath)
+
+    try:
+        from docx import Document
+        from docx.oxml.ns import qn
+    except ImportError:
+        return extract_docx(filepath)
+
+    doc = Document(filepath)
+    text_parts = []
+    image_count = 0
+
+    # 인라인 이미지 추출 헬퍼
+    def _get_inline_images(part):
+        """docx 파트에서 인라인 이미지 바이트 리스트 반환"""
+        images = []
+        try:
+            rels = part.rels
+            for rel in rels.values():
+                if "image" in rel.reltype:
+                    try:
+                        images.append(rel.target_part.blob)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return images
+
+    for para in doc.paragraphs:
+        if para.text.strip():
+            text_parts.append(para.text)
+        # 단락 내 이미지 처리
+        for run in para.runs:
+            drawing_elems = run._element.findall('.//' + qn('a:blip'))
+            if drawing_elems:
+                for blip in drawing_elems:
+                    embed = blip.get(qn('r:embed'))
+                    if embed and embed in doc.part.rels:
+                        try:
+                            img_blob = doc.part.rels[embed].target_part.blob
+                            description = describe_image(img_blob)
+                            if description:
+                                image_count += 1
+                                text_parts.append(f"[이미지 {image_count} 내용]\n{description}")
+                        except Exception as e:
+                            logger.warning(f"DOCX 이미지 처리 실패: {e}")
+
+    for table in doc.tables:
+        for row in table.rows:
+            row_text = "\t".join(c.text.strip() for c in row.cells if c.text.strip())
+            if row_text:
+                text_parts.append(row_text)
+
+    if image_count > 0:
+        logger.info(f"DOCX 이미지 {image_count}개 비전 분석 완료")
+
+    return "\n".join(text_parts)
+

@@ -108,7 +108,7 @@ async def call_ollama_chat_stream(messages: list) -> AsyncGenerator[str, None]:
 async def call_ollama_embedding(texts: List[str]) -> List[List[float]]:
     """Ollama Embedding API 호출 (배치 처리 + 재시도)"""
     embeddings = []
-    batch_size = 10  # 한 번에 처리할 텍스트 수
+    batch_size = settings.EMBEDDING_BATCH_SIZE
 
     for i in range(0, len(texts), batch_size):
         batch = texts[i:i + batch_size]

@@ -43,3 +43,11 @@ class AskResponse(BaseModel):
     sources: List[dict]
     message_id: str
     confidence_score: Optional[float] = None
+
+
+class FeedbackRequest(BaseModel):
+    score: int  # 1 = 좋음, -1 = 나쁨
+
+
+class SourceClickRequest(BaseModel):
+    chunk_id: str

@@ -29,6 +29,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const isAskingRef = useRef(false); // askQuestion 실행 중 useEffect가 메시지를 덮어쓰는 race condition 방지
   const [showSessions, setShowSessions] = useState(false);
   const [documents, setDocuments] = useState([]);
   const [selectedDocIds, setSelectedDocIds] = useState([]);
@@ -36,7 +37,19 @@ export default function ChatPage() {
   const [useHyde, setUseHyde] = useState(false);
 
   useEffect(() => { loadSessions(); loadDocuments(); }, []);
-  useEffect(() => { if (activeSession) loadMessages(activeSession); }, [activeSession]);
+
+  // 세션 전환 시 메시지 로드 (askQuestion 실행 중이면 스킵하여 race condition 방지)
+  useEffect(() => {
+    if (!activeSession) return;
+    if (isAskingRef.current) return; // 스트리밍 중에는 메시지를 덮어쓰지 않음
+    let cancelled = false;
+    setMessages([]); // 즉시 초기화해 이전 세션 메시지가 보이지 않도록
+    chatAPI.messages(activeSession)
+      .then(res => { if (!cancelled && !isAskingRef.current) setMessages(res.data); })
+      .catch(() => { if (!cancelled) toast.error('메시지 로드 실패'); });
+    return () => { cancelled = true; };
+  }, [activeSession]);
+
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const loadDocuments = async () => {
@@ -58,11 +71,6 @@ export default function ChatPage() {
       setSessions(res.data);
       if (res.data.length > 0 && !activeSession) setActiveSession(res.data[0].id);
     } catch { toast.error('세션 로드 실패'); }
-  };
-
-  const loadMessages = async (sessionId) => {
-    try { const res = await chatAPI.messages(sessionId); setMessages(res.data); }
-    catch { toast.error('메시지 로드 실패'); }
   };
 
   const createSession = async () => {
@@ -99,6 +107,7 @@ export default function ChatPage() {
   };
 
   const askQuestion = async (sessionId, q) => {
+    isAskingRef.current = true; // useEffect의 메시지 덮어쓰기 방지
     setLoading(true);
     const userMsg = { role: 'user', content: q, id: 'user-' + Date.now() };
     setMessages((prev) => [...prev, userMsg]);
@@ -131,7 +140,7 @@ export default function ChatPage() {
       } catch (fallbackErr) {
         toast.error(fallbackErr.response?.data?.detail || fallbackErr.message || 'AI 답변 생성 실패');
       }
-    } finally { setLoading(false); }
+    } finally { isAskingRef.current = false; setLoading(false); }
   };
 
   const handleQuickQuestion = async (q) => {
@@ -186,6 +195,18 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
           {sessions.map((session) => {
             const isActive = activeSession === session.id;
+            const d = new Date(session.created_at);
+            const now = new Date();
+            const diffMs = now - d;
+            const diffMin = Math.floor(diffMs / 60000);
+            const diffHr = Math.floor(diffMin / 60);
+            const diffDay = Math.floor(diffHr / 24);
+            let timeLabel;
+            if (diffMin < 1) timeLabel = '방금';
+            else if (diffMin < 60) timeLabel = `${diffMin}분 전`;
+            else if (diffHr < 24) timeLabel = `${diffHr}시간 전`;
+            else if (diffDay < 7) timeLabel = `${diffDay}일 전`;
+            else timeLabel = `${d.getMonth()+1}/${d.getDate()}`;
             return (
               <div
                 key={session.id}
@@ -195,10 +216,13 @@ export default function ChatPage() {
                 onClick={() => { setActiveSession(session.id); setShowSessions(false); }}
               >
                 <HiOutlineChatBubbleLeftRight className="w-3.5 h-3.5 flex-shrink-0 opacity-60" />
-                <p className="text-[12px] truncate flex-1">{session.title}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] truncate">{session.title}</p>
+                  <p className="text-[10px] text-gray-600">{timeLabel}</p>
+                </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
-                  className="p-1 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all rounded"
+                  className="p-1 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all rounded flex-shrink-0"
                 >
                   <HiOutlineTrash className="w-3 h-3" />
                 </button>
@@ -285,7 +309,7 @@ export default function ChatPage() {
                       <div className="flex items-center gap-2 mb-2">
                         <HiOutlineArrowPath className="w-3.5 h-3.5 text-baikal-500 animate-spin" />
                         <span className="text-[12px] text-gray-400 font-medium">
-                          {useHyde ? 'HyDE 고정확도 분석 중...' : '분석 오후 답변 생성 중...'}
+                          {useHyde ? 'HyDE 고정확도 분석 중...' : '분석 후 답변 생성 중...'}
                         </span>
                       </div>
                       <div className="space-y-2">

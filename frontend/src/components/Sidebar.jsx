@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import PasswordChangeModal from './PasswordChangeModal';
+import BaikalLogo from './BaikalLogo';
 import {
   HiOutlineChatBubbleLeftRight,
   HiOutlineDocumentText,
@@ -56,7 +57,7 @@ export default function Sidebar({ onClose }) {
       {/* 로고 */}
       <div className="px-4 pt-5 pb-4 flex items-center justify-between">
         <div className="flex items-center">
-          <img src="/images/baikal_logo_white.png" alt="BAIKAL" className="h-11 w-auto" />
+          <BaikalLogo className="h-11" />
         </div>
         {onClose && (
           <button onClick={onClose} className="p-1.5 text-gray-500 hover:text-gray-300 rounded-lg transition-colors lg:hidden">

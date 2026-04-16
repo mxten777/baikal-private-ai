@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import BaikalLogo from './BaikalLogo';
 import { HiOutlineBars3 } from 'react-icons/hi2';
 
 export default function Layout() {
@@ -40,7 +41,7 @@ export default function Layout() {
           >
             <HiOutlineBars3 className="w-5 h-5" />
           </button>
-          <img src="/images/baikal_logo_white.png" alt="BAIKAL" className="h-8 w-auto" />
+          <BaikalLogo className="h-8" />
         </div>
         <Outlet />
       </main>

@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { HiOutlineEye, HiOutlineEyeSlash } from 'react-icons/hi2';
+import BaikalLogo from '../components/BaikalLogo';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -52,11 +53,11 @@ export default function LoginPage() {
 
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div className="flex items-center">
-            <img src="/images/baikal_logo_white.png" alt="BAIKAL" className="h-10 w-auto opacity-60" />
+            <BaikalLogo className="h-10 opacity-60" />
           </div>
 
           <div>
-            <img src="/images/baikal_logo_white.png" alt="BAIKAL" className="h-28 w-auto" />
+            <BaikalLogo className="h-28" />
             <p className="mt-4 text-[15px] text-white/30 leading-relaxed max-w-sm">
               폐쇄망 환경에서 안전하게 운영되는
               <br />문서 검색 · AI 답변 플랫폼
@@ -87,7 +88,7 @@ export default function LoginPage() {
         <div className="w-full max-w-[360px] px-6">
           {/* 모바일 로고 */}
           <div className="lg:hidden text-center mb-8">
-            <img src="/images/baikal_logo_white.png" alt="BAIKAL" className="h-12 w-auto mx-auto" />
+            <BaikalLogo className="h-12 mx-auto block" />
           </div>
 
           <div className="mb-7">

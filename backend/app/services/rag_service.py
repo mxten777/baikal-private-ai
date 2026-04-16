@@ -17,10 +17,15 @@ logger = logging.getLogger("baikal.rag")
 
 SYSTEM_PROMPT = """당신은 BAIKAL Private AI 시스템의 기업 내부 문서 전문 어시스턴트입니다.
 
+## 답변 절차 (반드시 이 순서로 처리)
+1. 제공된 참고 문서에서 질문과 관련된 내용을 먼저 찾는다.
+2. 관련 내용이 있으면 그것만을 근거로 답변을 구성한다.
+3. 관련 내용이 없으면 "제공된 문서에서 해당 정보를 찾을 수 없습니다. 관련 문서를 추가로 업로드해 주세요."라고만 답한다.
+
 ## 핵심 규칙
 1. **반드시 아래 제공된 참고 문서만을 근거로** 답변하세요. 문서 외의 지식을 사용하지 마세요.
-2. 참고 문서 중 **질문과 직접 관련 없는 내용은 무시하고 포함하지 마세요**. 질문에 답하는 데 필요한 정보만 사용하세요.
-3. 문서에 없는 내용은 절대 추측하거나 창작하지 말고, "제공된 문서에서 해당 정보를 찾을 수 없습니다. 관련 문서를 추가로 업로드해 주세요."라고 안내하세요.
+2. 참고 문서 중 **질문과 직접 관련 없는 내용은 무시하고 포함하지 마세요**.
+3. 이전 대화 내용을 요약하거나 반복하지 마세요. 오직 현재 질문에만 집중하세요.
 4. 답변은 **항상 자연스럽고 명확한 한국어**로 작성하세요.
 5. **핵심 내용을 먼저 1~2줄로 요약**한 후, 상세 내용을 구조화하여 설명하세요.
 6. 숫자, 날짜, 금액 등 중요 수치는 **굵은 글씨**로 강조하세요.
@@ -28,7 +33,25 @@ SYSTEM_PROMPT = """당신은 BAIKAL Private AI 시스템의 기업 내부 문서
 8. 답변 마지막에 "📄 출처: [문서명]" 형식으로 참고 문서를 명시하세요.
 9. 질문이 모호하면 어떤 의도인지 되묻되, 가능한 해석이 하나라면 그대로 답변하세요."""
 
-MAX_HISTORY_TURNS = settings.MAX_HISTORY_TURNS  # 콘텍스트에 포함할 최대 대화 턴 수 (주제 오염 방지)
+async def _save_guardrail_violation_log(
+    user_id: str, question: str, session_id: str, guard, db: AsyncSession
+) -> None:
+    """Guardrail 차단 이벤트를 QueryLog에 기록 (feedback_score=-2)"""
+    try:
+        vio_log = QueryLog(
+            user_id=user_id,
+            query=question,
+            response_summary=f"[GUARDRAIL:{guard.category}] {guard.reason}",
+            confidence_score=0.0,
+            latency_ms=0,
+            session_id=session_id,
+            model_name=settings.LLM_MODEL,
+            feedback_score=-2,  # -2 = Policy Violation
+        )
+        db.add(vio_log)
+        await db.commit()
+    except Exception as e:
+        logger.warning(f"Guardrail 로그 저장 실패: {e}")
 
 
 async def _get_chat_history(session_id: str, db: AsyncSession) -> list[dict]:
@@ -37,12 +60,20 @@ async def _get_chat_history(session_id: str, db: AsyncSession) -> list[dict]:
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id)
         .order_by(ChatMessage.created_at.desc())
-        .limit(MAX_HISTORY_TURNS * 2)  # user+assistant 쌍
+        .limit(settings.MAX_HISTORY_TURNS * 2)  # user+assistant 쌍
     )
     messages = result.scalars().all()
     # 시간순 정렬 (오래된 것부터)
     messages = list(reversed(messages))
-    return [{"role": m.role, "content": m.content} for m in messages]
+    # 어시스턴트 답변은 500자로 제한 — 긴 이전 답변이 컨텍스트를 낭비하지 않도록
+    result_msgs = []
+    for m in messages:
+        if m.role == "assistant" and len(m.content) > 500:
+            content = m.content[:500] + "...(요약됨)"
+        else:
+            content = m.content
+        result_msgs.append({"role": m.role, "content": content})
+    return result_msgs
 
 
 async def ask_question(
@@ -66,22 +97,7 @@ async def ask_question(
     # Guardrail: 비관련/유해 질문 선제 차단
     guard = check_guardrail(question, user_id=user_id)
     if guard.action != PolicyAction.ALLOW:
-        # 차단 로그 기록 (QueryLog.feedback_score=-2 로 Policy Violation 표시)
-        try:
-            vio_log = QueryLog(
-                user_id=user_id,
-                query=question,
-                response_summary=f"[GUARDRAIL:{guard.category}] {guard.reason}",
-                confidence_score=0.0,
-                latency_ms=0,
-                session_id=session_id,
-                model_name=settings.LLM_MODEL,
-                feedback_score=-2,  # -2 = Policy Violation
-            )
-            db.add(vio_log)
-            await db.commit()
-        except Exception as e:
-            logger.warning(f"Guardrail 로그 저장 실패: {e}")
+        await _save_guardrail_violation_log(user_id, question, session_id, guard, db)
         raise ValueError(guard.safe_message)
 
     # 2. RAG 컨텍스트 생성 (_build_rag_context 활용, 중복 로직 제거)
@@ -97,7 +113,13 @@ async def ask_question(
     messages.extend(history)
     messages.append({
         "role": "user",
-        "content": f"참고 문서:\n{context}\n\n질문: {question}\n\n위 문서 내용을 기반으로 답변해주세요."
+        "content": (
+            "[현재 질문 전용 참고 문서]\n"
+            "아래 문서만 근거로 현재 질문에만 답변하세요. "
+            "이전 답변 내용은 절대 요약하거나 반복하지 마세요.\n\n"
+            f"{context}\n\n"
+            f"질문: {question}"
+        )
     })
 
     # 5. LLM 호출
@@ -224,21 +246,7 @@ async def ask_question_stream(
     # Guardrail: 비관련/유해 질문 선제 차단
     guard = check_guardrail(question, user_id=user_id)
     if guard.action != PolicyAction.ALLOW:
-        try:
-            vio_log = QueryLog(
-                user_id=user_id,
-                query=question,
-                response_summary=f"[GUARDRAIL:{guard.category}] {guard.reason}",
-                confidence_score=0.0,
-                latency_ms=0,
-                session_id=session_id,
-                model_name=settings.LLM_MODEL,
-                feedback_score=-2,
-            )
-            db.add(vio_log)
-            await db.commit()
-        except Exception as e:
-            logger.warning(f"Guardrail 로그 저장 실패: {e}")
+        await _save_guardrail_violation_log(user_id, question, session_id, guard, db)
         yield {"type": "error", "content": guard.safe_message}
         return
 
@@ -258,7 +266,13 @@ async def ask_question_stream(
     messages.extend(history)
     messages.append({
         "role": "user",
-        "content": f"참고 문서:\n{context}\n\n질문: {question}\n\n위 문서 내용을 기반으로 답변해주세요."
+        "content": (
+            "[현재 질문 전용 참고 문서]\n"
+            "아래 문서만 근거로 현재 질문에만 답변하세요. "
+            "이전 답변 내용은 절대 요약하거나 반복하지 마세요.\n\n"
+            f"{context}\n\n"
+            f"질문: {question}"
+        )
     })
 
     # LLM 스트리밍 호출

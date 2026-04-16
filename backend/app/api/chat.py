@@ -6,13 +6,13 @@ import logging
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
 from app.schemas.chat import (
     ChatSessionCreate, ChatSessionResponse,
     ChatMessageResponse, AskRequest, AskResponse,
+    FeedbackRequest, SourceClickRequest,
 )
 from app.models.document import ChatSession, ChatMessage, QueryLog
 from app.models.user import User
@@ -170,14 +170,6 @@ async def delete_session(
 
     await db.delete(session)
     await db.commit()
-
-
-class FeedbackRequest(BaseModel):
-    score: int  # 1 = 좋음, -1 = 나쁨
-
-
-class SourceClickRequest(BaseModel):
-    chunk_id: str
 
 
 @router.post("/messages/{message_id}/feedback", status_code=204)

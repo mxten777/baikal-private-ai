@@ -32,8 +32,8 @@ class Settings(BaseSettings):
 
     # RAG
     CHUNK_SIZE: int = 500
-    CHUNK_OVERLAP: int = 50
-    TOP_K: int = 5
+    CHUNK_OVERLAP: int = 100
+    TOP_K: int = 7
     SIMILARITY_THRESHOLD: float = 0.50
     EMBEDDING_DIMENSION: int = 1024
     MIN_HYBRID_SCORE: float = 0.45
@@ -41,10 +41,13 @@ class Settings(BaseSettings):
     CROSS_ENCODER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     MAX_HISTORY_TURNS: int = 3
 
+    # Embedding
+    EMBEDDING_BATCH_SIZE: int = 10
+
     # LLM Options
     LLM_NUM_CTX: int = 8192
     LLM_NUM_PREDICT: int = 1024
-    LLM_TEMPERATURE: float = 0.3
+    LLM_TEMPERATURE: float = 0.15
 
     # OCR
     OCR_MIN_TEXT_PER_PAGE: int = 30
