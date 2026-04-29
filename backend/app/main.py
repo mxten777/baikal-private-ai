@@ -3,10 +3,15 @@ BAIKAL Private AI - Main Application
 """
 import asyncio
 import logging
+import uuid
+from contextvars import ContextVar
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+# request_id context variable (per-request)
+_request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 from app.config import get_settings
@@ -17,11 +22,19 @@ from app.core.limits import limiter
 
 settings = get_settings()
 
-# 로깅 설정
+# 로깅 설정 — request_id 포함 필터
+class RequestIdFilter(logging.Filter):
+    def filter(self, record):
+        record.request_id = _request_id_var.get("-")
+        return True
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    format="%(asctime)s [%(levelname)s] %(name)s [%(request_id)s]: %(message)s",
 )
+# 루트 로거에 필터 적용
+for handler in logging.root.handlers:
+    handler.addFilter(RequestIdFilter())
 logger = logging.getLogger("baikal")
 
 
@@ -110,6 +123,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+# request_id 미들웨어 — 모든 요청에 UUID 주입
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    rid = request.headers.get("X-Request-ID") or str(uuid.uuid4())[:8]
+    token = _request_id_var.set(rid)
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = rid
+    _request_id_var.reset(token)
+    return response
 
 # 라우터 등록
 app.include_router(auth.router)
