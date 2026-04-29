@@ -1,0 +1,184 @@
+{
+  "questions": [
+    {
+      "id": 1, "group": "A",
+      "question": "정보공개 청구의 처리 기간은 며칠인가요? 연장은 가능한가요?",
+      "expected_keywords": ["10일", "연장"],
+      "min_keyword_matches": 2,
+      "expected_source_pattern": "정보공개",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 2, "group": "A",
+      "question": "비공개 정보 사유는 어떤 것들이 있나요?",
+      "expected_keywords": ["국방", "수사", "사생활", "영업", "법인"],
+      "min_keyword_matches": 3,
+      "expected_source_pattern": "정보공개",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 3, "group": "A",
+      "question": "행정처분 사전통지의 예외 사유는?",
+      "expected_keywords": ["공공", "현저", "곤란", "성질", "사정"],
+      "min_keyword_matches": 2,
+      "expected_source_pattern": "행정절차",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 4, "group": "A",
+      "question": "청문은 어떤 경우에 실시하나요?",
+      "expected_keywords": ["청문", "법령", "행정청", "처분"],
+      "min_keyword_matches": 2,
+      "expected_source_pattern": "행정절차",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 5, "group": "A",
+      "question": "정보공개 청구서 접수 후 정한 절차는?",
+      "expected_keywords": ["접수", "통지", "결정", "심의"],
+      "min_keyword_matches": 2,
+      "expected_source_pattern": "정보공개",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 6, "group": "A",
+      "question": "정보공개심의회 구성은 어떻게 되어 있나요?",
+      "expected_keywords": ["위원", "구성"],
+      "min_keyword_matches": 1,
+      "expected_source_pattern": "정보공개",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 7, "group": "A",
+      "question": "공무원 연가 일수는 재직 기간에 따라 어떻게 다른가요?",
+      "expected_keywords": ["연가", "재직", "일"],
+      "min_keyword_matches": 2,
+      "expected_source_pattern": "복무|취업규칙|인사",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 8, "group": "A",
+      "question": "복무 위반 시 징계 종류는?",
+      "expected_keywords": ["파면", "해임", "정직", "감봉", "견책", "강등"],
+      "min_keyword_matches": 3,
+      "expected_source_pattern": "복무|취업규칙|인사",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 9, "group": "B",
+      "question": "정보공개 청구의 처리 기간 정확한 조항 번호와 페이지를 알려주세요.",
+      "expected_keywords": ["제", "조"],
+      "min_keyword_matches": 2,
+      "expected_source_pattern": "정보공개",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 10, "group": "B",
+      "question": "정보공개 비공개 사유는 몇 가지이며 각각 법 조항 어디에 있나요?",
+      "expected_keywords": ["제9조", "호"],
+      "min_keyword_matches": 1,
+      "expected_source_pattern": "정보공개",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 11, "group": "B",
+      "question": "송달의 정의가 행정절차법 어디에 있나요?",
+      "expected_keywords": ["송달", "제", "조"],
+      "min_keyword_matches": 2,
+      "expected_source_pattern": "행정절차",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 12, "group": "B",
+      "question": "정보공개법의 시행일은 언제이며 부칙 어디에 있나요?",
+      "expected_keywords": ["부칙", "시행"],
+      "min_keyword_matches": 1,
+      "expected_source_pattern": "정보공개",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 13, "group": "C",
+      "question": "정보공개법과 정보공개 조례안의 처리 기간 규정을 비교해 주세요.",
+      "expected_keywords": ["10일", "기간"],
+      "min_keyword_matches": 1,
+      "expected_source_pattern": "정보공개",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 14, "group": "C",
+      "question": "복무 조례안과 인사 예규의 복무 위반 처분 절차 차이는?",
+      "expected_keywords": ["징계", "처분", "절차"],
+      "min_keyword_matches": 1,
+      "expected_source_pattern": "복무|취업규칙|인사",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 15, "group": "C",
+      "question": "정보공개법과 행정절차법에서 공통적으로 정한 통지 방법은?",
+      "expected_keywords": ["통지", "서면", "전자"],
+      "min_keyword_matches": 1,
+      "expected_source_pattern": "정보공개|행정절차",
+      "expect_refusal": false,
+      "min_confidence": 0.40
+    },
+    {
+      "id": 16, "group": "D",
+      "question": "다음 분기 예산은 얼마인가요?",
+      "expected_keywords": [],
+      "min_keyword_matches": 0,
+      "expected_source_pattern": null,
+      "expect_refusal": true,
+      "min_confidence": 0
+    },
+    {
+      "id": 17, "group": "D",
+      "question": "작년 우리 기관의 정보공개 청구 건수는?",
+      "expected_keywords": [],
+      "min_keyword_matches": 0,
+      "expected_source_pattern": null,
+      "expect_refusal": true,
+      "min_confidence": 0
+    },
+    {
+      "id": 18, "group": "D",
+      "question": "청구인의 주민등록번호 처리 절차는?",
+      "expected_keywords": [],
+      "min_keyword_matches": 0,
+      "expected_source_pattern": null,
+      "expect_refusal": true,
+      "min_confidence": 0
+    },
+    {
+      "id": 19, "group": "D",
+      "question": "미국의 일반적인 정보공개 처리 기준은?",
+      "expected_keywords": [],
+      "min_keyword_matches": 0,
+      "expected_source_pattern": null,
+      "expect_refusal": true,
+      "min_confidence": 0
+    },
+    {
+      "id": 20, "group": "D",
+      "question": "우리 부서장 이름은 무엇인가요?",
+      "expected_keywords": [],
+      "min_keyword_matches": 0,
+      "expected_source_pattern": null,
+      "expect_refusal": true,
+      "min_confidence": 0
+    }
+  ]
+}

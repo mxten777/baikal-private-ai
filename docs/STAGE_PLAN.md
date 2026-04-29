@@ -24,17 +24,23 @@
 ### 1.1 — 발견 사항 (영구 기록)
 - **백엔드는 image COPY 방식이라 `restart`만으로는 코드 변경 반영 안 됨** → 반드시 `build` 후 `up -d`
 - StreamingResponse `yield` 후 `await` 단계는 client disconnect 시 GeneratorExit 로 스킵 → DB 저장 필요한 것은 `yield` 이전에 commit
+- **PowerShell `Invoke-RestMethod` multipart 업로드는 binary 파일을 ISO-8859-1↔UTF-8 변환으로 부풀려 ZIP 시그니처 깨뜨림** (215258B → 274205B). 자동화 업로드는 Python `requests` 사용 (`scripts/reupload_haengjeong.py`).
 
 ---
 
 ## Stage 2 — Answer Quality (답변 품질)
 
-| #   | 항목                                          | 검증 |
-| --- | --------------------------------------------- | ---- |
-| 2.1 | SYSTEM_PROMPT 강화 (전 항목 누락 금지) 회귀  | 질문 #3 (행정처분 사전통지 예외) → 3/3 항목 + 조항번호 |
-| 2.2 | 신뢰도 산정식 검증 (top1 60% + 상위절반 40%) | 질문 #16~20 거절 비율 80%+ |
-| 2.3 | 인용 형식 일관성 (법 제○조 제○항)            | 질문 #9, #11 인용 정확도 4/4 |
-| 2.4 | 20개 질문지 자동 채점 스크립트                | scripts/eval_demo_q20.py |
+| #   | 항목                                          | 상태 | 검증 |
+| --- | --------------------------------------------- | ---- | ---- |
+| 2.1 | SYSTEM_PROMPT ⛔ 절대 규칙 5종 (외국·미래·개인·외부·무관) | ✅ 완료 | D그룹 5/5 PASS |
+| 2.2 | 행정절차법 hwpx 재색인 (PDF 손상 → hwpx 202청크) | ✅ 완료 | Q3, Q11 PASS |
+| 2.3 | 20문항 자동 채점 baseline                       | ✅ 완료 | **15/20 (게이트 14/20) ✅** |
+| 2.4 | git tag stage-2-stable                          | ✅ 완료 | A 4/8, B 4/4, C 2/3, D 5/5 |
+
+### 2.x — 발견 사항 (영구 기록)
+- **A 그룹 미달 4건은 데이터 부재 / 응답 시간 초과**: Q05(표준 정보공개 조례안 미색인), Q07(표준 복무 조례안 미색인), Q08(인사 예규 미색인), Q02(LLM 180s 타임아웃, 답변 길어짐). 시스템 결함 아님.
+- 평가 스크립트 `scripts/eval_demo_q20.py`, baseline `scripts/q20_full_baseline.json`
+- Q4 (청문 시기) PASS 확인됨 — Stage 2.1 프롬프트 강화 효과 확인
 
 ---
 

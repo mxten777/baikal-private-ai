@@ -1,0 +1,406 @@
+{
+  "summary": {
+    "total_pass": 15,
+    "total_fail": 5,
+    "by_group": {
+      "A": {
+        "pass": 4,
+        "fail": 4
+      },
+      "B": {
+        "pass": 4,
+        "fail": 0
+      },
+      "C": {
+        "pass": 2,
+        "fail": 1
+      },
+      "D": {
+        "pass": 5,
+        "fail": 0
+      }
+    }
+  },
+  "results": [
+    {
+      "id": 1,
+      "group": "A",
+      "question": "정보공개 청구의 처리 기간은 며칠인가요? 연장은 가능한가요?",
+      "elapsed_s": 116.7,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 327,
+        "answer_preview": "정보공개 청구의 처리 기간은 공공기관은 제10조에 따라 정보공개의 청구를 받으면 그 청구를 받은 날부터 10일 이내에 공개 여부를 결정하여야 한다. `(공공기관의 정보공개에 관한 법률, 제11조)` \n\n이 기간 내에",
+        "confidence": 1.0,
+        "matched_keywords": [
+          "10일",
+          "연장"
+        ],
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "group": "A",
+      "question": "비공개 정보 사유는 어떤 것들이 있나요?",
+      "elapsed_s": 180.0,
+      "pass": false,
+      "reasons": [
+        "HTTPConnectionPool(host='localhost', port=80): Read timed out. (read timeout=180)"
+      ],
+      "details": {
+        "error": "HTTPConnectionPool(host='localhost', port=80): Read timed out. (read timeout=180)"
+      }
+    },
+    {
+      "id": 3,
+      "group": "A",
+      "question": "행정처분 사전통지의 예외 사유는?",
+      "elapsed_s": 67.0,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 223,
+        "answer_preview": "1. 처분의 성질상 의견청취가 현저히 곤란하거나 명백히 불필요하다고 인정될 만한 상당한 이유가 있는 경우 `(행정절차법, 제21조 제5항)`.\n2. 처분의 전제가 되는 사실이 법원의 재판 등에 의하여 객관적으로 증명",
+        "confidence": 1.0,
+        "matched_keywords": [
+          "현저",
+          "곤란",
+          "성질"
+        ],
+        "sources": [
+          "행정절차법(법률)(제18748호)(20230324).hwpx"
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "group": "A",
+      "question": "청문은 어떤 경우에 실시하나요?",
+      "elapsed_s": 155.2,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 371,
+        "answer_preview": "1. 처분의 내용, 주요 사실 또는 증거와 관련된 의견청구가 있을 때 `(행정절차법, 제36조)`.\n2. 당사자등이 정당한 사유 없이 청문기일에 출석하지 아니하거나 의견서를 제출하지 않을 경우에도, 청문 주재자는 이",
+        "confidence": 1.0,
+        "matched_keywords": [
+          "청문",
+          "처분"
+        ],
+        "sources": [
+          "행정절차법(법률)(제18748호)(20230324).hwpx"
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "group": "A",
+      "question": "정보공개 청구서 접수 후 정한 절차는?",
+      "elapsed_s": 172.2,
+      "pass": false,
+      "reasons": [
+        "키워드 매치 0/2 (필요 2+ / 매칭: [])"
+      ],
+      "details": {
+        "answer_len": 47,
+        "answer_preview": "제공된 문서에서 해당 정보를 찾을 수 없습니다. 관련 문서를 추가로 업로드해 주세요.",
+        "confidence": 1.0,
+        "matched_keywords": [],
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "group": "A",
+      "question": "정보공개심의회 구성은 어떻게 되어 있나요?",
+      "elapsed_s": 156.7,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 205,
+        "answer_preview": "1. 심의회는 위원장 1명을 포함하여 5명 이상 7명 이하의 위원으로 구성된다 `(정보공개법, 제12조 ②)`.\n2. 심의회의 운영과 기능 등에 관하여 필요한 사항은 국회규칙ㆍ대법원규칙ㆍ헌법재판소규칙ㆍ중앙선거관리위원",
+        "confidence": 1.0,
+        "matched_keywords": [
+          "위원",
+          "구성"
+        ],
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "group": "A",
+      "question": "공무원 연가 일수는 재직 기간에 따라 어떻게 다른가요?",
+      "elapsed_s": 102.2,
+      "pass": false,
+      "reasons": [
+        "키워드 매치 0/2 (필요 2+ / 매칭: [])",
+        "출처 패턴 '복무|취업규칙|인사' 미매치"
+      ],
+      "details": {
+        "answer_len": 47,
+        "answer_preview": "제공된 문서에서 해당 정보를 찾을 수 없습니다. 관련 문서를 추가로 업로드해 주세요.",
+        "confidence": 1.0,
+        "matched_keywords": [],
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "group": "A",
+      "question": "복무 위반 시 징계 종류는?",
+      "elapsed_s": 39.1,
+      "pass": false,
+      "reasons": [
+        "키워드 매치 0/3 (필요 3+ / 매칭: [])",
+        "출처 패턴 '복무|취업규칙|인사' 미매치"
+      ],
+      "details": {
+        "answer_len": 47,
+        "answer_preview": "제공된 문서에서 해당 정보를 찾을 수 없습니다. 관련 문서를 추가로 업로드해 주세요.",
+        "confidence": 1.0,
+        "matched_keywords": [],
+        "sources": [
+          "행정절차법(법률)(제18748호)(20230324).hwpx"
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "group": "B",
+      "question": "정보공개 청구의 처리 기간 정확한 조항 번호와 페이지를 알려주세요.",
+      "elapsed_s": 154.7,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 242,
+        "answer_preview": "1. 공공기관은 정보공개 청구를 받으면 그 청구를 받은 날부터 10일 이내에 공개 여부를 결정하여야 한다 `(정보공개법, 제11조 ①)`.\n2. 부득이한 사유로 10일 이내에 공개 여부를 결정할 수 없을 때에는 그 ",
+        "confidence": 1.0,
+        "matched_keywords": [
+          "제",
+          "조"
+        ],
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "group": "B",
+      "question": "정보공개 비공개 사유는 몇 가지이며 각각 법 조항 어디에 있나요?",
+      "elapsed_s": 140.3,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 142,
+        "answer_preview": "1. 정보공개를 청구하여 정보공개 여부에 대한 결정의 통지를 받은 자가 정당한 사유 없이 해당 정보의 공개를 다시 청구하는 경우 `(정보공개법, 제11조의2 ①)`.\n\n📄 출처: [공공기관의 정보공개에 관한 법률(법",
+        "confidence": 1.0,
+        "matched_keywords": [
+          "호"
+        ],
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "group": "B",
+      "question": "송달의 정의가 행정절차법 어디에 있나요?",
+      "elapsed_s": 50.7,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 68,
+        "answer_preview": "1. 송달의 정의는 `행정절차법 제15조`에 있습니다.\n\n📄 출처: [행정절차법(법률)(제18748호)(20230324)]",
+        "confidence": 1.0,
+        "matched_keywords": [
+          "송달",
+          "제",
+          "조"
+        ],
+        "sources": [
+          "행정절차법(법률)(제18748호)(20230324).hwpx"
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "group": "B",
+      "question": "정보공개법의 시행일은 언제이며 부칙 어디에 있나요?",
+      "elapsed_s": 96.4,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 96,
+        "answer_preview": "1. 정보공개법의 시행일은 `2023년 11월 17일`입니다 `(부칙, 제1조)`.\n\n📄 출처: [공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117)]",
+        "confidence": 1.0,
+        "matched_keywords": [
+          "부칙",
+          "시행"
+        ],
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "group": "C",
+      "question": "정보공개법과 정보공개 조례안의 처리 기간 규정을 비교해 주세요.",
+      "elapsed_s": 174.1,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 367,
+        "answer_preview": "| 사유 | 정보공개법 | 정보공개 조례안 |\n| --- | --- | --- |\n| 정보공개 여부 결정 기간 | 공공기관은 정보공개 청구를 받으면 그 날부터 10일 이내에 공개 여부를 결정해야 합니다. (정보공개법",
+        "confidence": 1.0,
+        "matched_keywords": [
+          "10일",
+          "기간"
+        ],
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 14,
+      "group": "C",
+      "question": "복무 조례안과 인사 예규의 복무 위반 처분 절차 차이는?",
+      "elapsed_s": 66.1,
+      "pass": false,
+      "reasons": [
+        "출처 패턴 '복무|취업규칙|인사' 미매치"
+      ],
+      "details": {
+        "answer_len": 122,
+        "answer_preview": "제공된 문서에서는 복무 조례안과 인사 예규의 복무 위반 처분 절차 차이에 대한 정보를 찾을 수 없습니다. 관련 조례 및 예규를 추가로 업로드해 주세요.\n\n📄 출처: [행정절차법(법률)(제18748호)(20230324",
+        "confidence": 1.0,
+        "matched_keywords": [
+          "처분",
+          "절차"
+        ],
+        "sources": [
+          "행정절차법(법률)(제18748호)(20230324).hwpx"
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "group": "C",
+      "question": "정보공개법과 행정절차법에서 공통적으로 정한 통지 방법은?",
+      "elapsed_s": 172.6,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 340,
+        "answer_preview": "1. 정보공개법에서는 공공기관이 정보공개 청구에 대한 결정을 받은 날부터 10일 이내에 청구인에게 문서로 통지를 해야 합니다 `(정보공개법 제11조 ③)`.\n\n2. 행정절차법에서는 공공기관이 비공개 요청에 대한 결정",
+        "confidence": 0.999,
+        "matched_keywords": [
+          "통지"
+        ],
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 16,
+      "group": "D",
+      "question": "다음 분기 예산은 얼마인가요?",
+      "elapsed_s": 0.2,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 72,
+        "answer_preview": "관련도가 낮아 답변을 생성하지 않습니다. 질문을 더 구체적으로 작성하시거나, 관련 문서가 시스템에 색인되어 있는지 확인해 주세요.",
+        "confidence": 0.0,
+        "refusal_reason": "no_chunks",
+        "source_count": 0,
+        "sources": []
+      }
+    },
+    {
+      "id": 17,
+      "group": "D",
+      "question": "작년 우리 기관의 정보공개 청구 건수는?",
+      "elapsed_s": 152.4,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 120,
+        "answer_preview": "제공된 문서에서는 작년 우리 기관의 정보공개 청구 건수에 대한 정보를 찾을 수 없습니다. 관련 문서를 추가로 업로드해 주세요.\n\n📄 출처: [공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117)]",
+        "confidence": 1.0,
+        "refusal_reason": null,
+        "source_count": 1,
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 18,
+      "group": "D",
+      "question": "청구인의 주민등록번호 처리 절차는?",
+      "elapsed_s": 0.0,
+      "pass": true,
+      "reasons": [
+        "guardrail_blocked"
+      ],
+      "details": {
+        "answer_len": 0,
+        "answer_preview": "{\"detail\":\"개인정보 추출 요청은 처리할 수 없습니다. 업로드된 문서 기반 질문을 이용해주세요.\"}",
+        "confidence": 0.0,
+        "refusal_reason": "guardrail",
+        "source_count": 0,
+        "sources": []
+      }
+    },
+    {
+      "id": 19,
+      "group": "D",
+      "question": "미국의 일반적인 정보공개 처리 기준은?",
+      "elapsed_s": 150.4,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 97,
+        "answer_preview": "제공된 문서에서 해당 정보를 찾을 수 없습니다. 관련 문서를 추가로 업로드해 주세요.\n\n📄 출처: [공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117)]",
+        "confidence": 1.0,
+        "refusal_reason": null,
+        "source_count": 1,
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 20,
+      "group": "D",
+      "question": "우리 부서장 이름은 무엇인가요?",
+      "elapsed_s": 0.2,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 72,
+        "answer_preview": "관련도가 낮아 답변을 생성하지 않습니다. 질문을 더 구체적으로 작성하시거나, 관련 문서가 시스템에 색인되어 있는지 확인해 주세요.",
+        "confidence": 0.0,
+        "refusal_reason": "no_chunks",
+        "source_count": 0,
+        "sources": []
+      }
+    }
+  ]
+}

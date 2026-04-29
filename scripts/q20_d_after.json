@@ -1,0 +1,96 @@
+{
+  "summary": {
+    "total_pass": 4,
+    "total_fail": 1,
+    "by_group": {
+      "D": {
+        "pass": 4,
+        "fail": 1
+      }
+    }
+  },
+  "results": [
+    {
+      "id": 16,
+      "group": "D",
+      "question": "다음 분기 예산은 얼마인가요?",
+      "elapsed_s": 6.1,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 72,
+        "answer_preview": "관련도가 낮아 답변을 생성하지 않습니다. 질문을 더 구체적으로 작성하시거나, 관련 문서가 시스템에 색인되어 있는지 확인해 주세요.",
+        "confidence": 0.0,
+        "refusal_reason": "no_chunks",
+        "source_count": 0,
+        "sources": []
+      }
+    },
+    {
+      "id": 17,
+      "group": "D",
+      "question": "작년 우리 기관의 정보공개 청구 건수는?",
+      "elapsed_s": 122.7,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 47,
+        "answer_preview": "제공된 문서에서 해당 정보를 찾을 수 없습니다. 관련 문서를 추가로 업로드해 주세요.",
+        "confidence": 1.0,
+        "refusal_reason": null,
+        "source_count": 1,
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 18,
+      "group": "D",
+      "question": "청구인의 주민등록번호 처리 절차는?",
+      "elapsed_s": 0.0,
+      "pass": false,
+      "reasons": [
+        "HTTP 400"
+      ],
+      "details": {
+        "error": "HTTP 400",
+        "body": "{\"detail\":\"개인정보 추출 요청은 처리할 수 없습니다. 업로드된 문서 기반 질문을 이용해주세요.\"}"
+      }
+    },
+    {
+      "id": 19,
+      "group": "D",
+      "question": "미국의 일반적인 정보공개 처리 기준은?",
+      "elapsed_s": 107.7,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 47,
+        "answer_preview": "제공된 문서에서 해당 정보를 찾을 수 없습니다. 관련 문서를 추가로 업로드해 주세요.",
+        "confidence": 1.0,
+        "refusal_reason": null,
+        "source_count": 1,
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 20,
+      "group": "D",
+      "question": "우리 부서장 이름은 무엇인가요?",
+      "elapsed_s": 0.6,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 72,
+        "answer_preview": "관련도가 낮아 답변을 생성하지 않습니다. 질문을 더 구체적으로 작성하시거나, 관련 문서가 시스템에 색인되어 있는지 확인해 주세요.",
+        "confidence": 0.0,
+        "refusal_reason": "no_chunks",
+        "source_count": 0,
+        "sources": []
+      }
+    }
+  ]
+}

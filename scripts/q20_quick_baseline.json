@@ -1,0 +1,121 @@
+{
+  "summary": {
+    "total_pass": 2,
+    "total_fail": 3,
+    "by_group": {
+      "A": {
+        "pass": 1,
+        "fail": 1
+      },
+      "B": {
+        "pass": 0,
+        "fail": 1
+      },
+      "C": {
+        "pass": 1,
+        "fail": 0
+      },
+      "D": {
+        "pass": 0,
+        "fail": 1
+      }
+    }
+  },
+  "results": [
+    {
+      "id": 1,
+      "group": "A",
+      "question": "정보공개 청구의 처리 기간은 며칠인가요? 연장은 가능한가요?",
+      "elapsed_s": 42.8,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 334,
+        "answer_preview": "정보공개 청구의 처리 기간은 공공기관은 제10조에 따라 정보공개의 청구를 받으면 그 청구를 받은 날부터 10일 이내에 공개 여부를 결정하여야 한다는 점을 확인할 수 있습니다. 또한, 부득이한 사유로 제1항에 따른 기",
+        "confidence": 1.0,
+        "matched_keywords": [
+          "10일",
+          "연장"
+        ],
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "group": "A",
+      "question": "행정처분 사전통지의 예외 사유는?",
+      "elapsed_s": 0.2,
+      "pass": false,
+      "reasons": [
+        "refusal_reason=no_chunks",
+        "confidence 0.00 < 0.4",
+        "키워드 매치 0/2 (필요 2+ / 매칭: [])",
+        "출처 패턴 '행정절차' 미매치"
+      ],
+      "details": {
+        "answer_len": 72,
+        "answer_preview": "관련도가 낮아 답변을 생성하지 않습니다. 질문을 더 구체적으로 작성하시거나, 관련 문서가 시스템에 색인되어 있는지 확인해 주세요.",
+        "confidence": 0.0,
+        "matched_keywords": [],
+        "sources": []
+      }
+    },
+    {
+      "id": 11,
+      "group": "B",
+      "question": "송달의 정의가 행정절차법 어디에 있나요?",
+      "elapsed_s": 0.1,
+      "pass": false,
+      "reasons": [
+        "refusal_reason=no_chunks",
+        "confidence 0.00 < 0.4",
+        "키워드 매치 0/2 (필요 2+ / 매칭: [])",
+        "출처 패턴 '행정절차' 미매치"
+      ],
+      "details": {
+        "answer_len": 72,
+        "answer_preview": "관련도가 낮아 답변을 생성하지 않습니다. 질문을 더 구체적으로 작성하시거나, 관련 문서가 시스템에 색인되어 있는지 확인해 주세요.",
+        "confidence": 0.0,
+        "matched_keywords": [],
+        "sources": []
+      }
+    },
+    {
+      "id": 15,
+      "group": "C",
+      "question": "정보공개법과 행정절차법에서 공통적으로 정한 통지 방법은?",
+      "elapsed_s": 143.6,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 451,
+        "answer_preview": "제공된 문서에서는 정보공개법에 대한 통지 방법에 대해 명시되어 있지만, 행정절차법에 대한 관련 내용은 찾을 수 없습니다. 따라서 답변을 다음과 같이 구성합니다.\n\n1. **정보공개법에서의 통지 방법**:\n   - 제",
+        "confidence": 0.999,
+        "matched_keywords": [
+          "통지"
+        ],
+        "sources": [
+          "공공기관의 정보공개에 관한 법률(법률)(제19408호)(20231117).hwp"
+        ]
+      }
+    },
+    {
+      "id": 19,
+      "group": "D",
+      "question": "미국의 일반적인 정보공개 처리 기준은?",
+      "elapsed_s": 142.2,
+      "pass": false,
+      "reasons": [
+        "거절되어야 함 (confidence=1.00, refusal=None)"
+      ],
+      "details": {
+        "answer_len": 151,
+        "confidence": 1.0,
+        "refusal_reason": null,
+        "source_count": 1
+      }
+    }
+  ]
+}

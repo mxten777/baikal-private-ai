@@ -1,0 +1,79 @@
+{
+  "summary": {
+    "total_pass": 2,
+    "total_fail": 1,
+    "by_group": {
+      "A": {
+        "pass": 1,
+        "fail": 1
+      },
+      "B": {
+        "pass": 1,
+        "fail": 0
+      }
+    }
+  },
+  "results": [
+    {
+      "id": 3,
+      "group": "A",
+      "question": "행정처분 사전통지의 예외 사유는?",
+      "elapsed_s": 114.7,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 235,
+        "answer_preview": "1. 해당 처분의 성질상 의견청취가 현저히 곤란하거나 명백히 불필요하다고 인정될 만한 상당한 이유가 있는 경우 `(행정절차법 제21조 제5항)`.\n\n2. 처분의 전제가 되는 사실이 법원의 재판 등에 의하여 객관적으로",
+        "confidence": 1.0,
+        "matched_keywords": [
+          "현저",
+          "곤란",
+          "성질"
+        ],
+        "sources": [
+          "행정절차법(법률)(제18748호)(20230324).hwpx"
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "group": "A",
+      "question": "청문은 어떤 경우에 실시하나요?",
+      "elapsed_s": 70.8,
+      "pass": false,
+      "reasons": [
+        "키워드 매치 0/2 (필요 2+ / 매칭: [])"
+      ],
+      "details": {
+        "answer_len": 47,
+        "answer_preview": "제공된 문서에서 해당 정보를 찾을 수 없습니다. 관련 문서를 추가로 업로드해 주세요.",
+        "confidence": 1.0,
+        "matched_keywords": [],
+        "sources": [
+          "행정절차법(법률)(제18748호)(20230324).hwpx"
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "group": "B",
+      "question": "송달의 정의가 행정절차법 어디에 있나요?",
+      "elapsed_s": 35.6,
+      "pass": true,
+      "reasons": [],
+      "details": {
+        "answer_len": 121,
+        "answer_preview": "1. 송달은 다른 법령 등에 특별한 규정이 없는 경우 해당 문서가 송달받을 자에게 도달함으로써 그 효력이 발생한다 `(행정절차법 제15조 제1항)`.\n\n📄 출처: [행정절차법(법률)(제18748호)(20230324)",
+        "confidence": 1.0,
+        "matched_keywords": [
+          "송달",
+          "제",
+          "조"
+        ],
+        "sources": [
+          "행정절차법(법률)(제18748호)(20230324).hwpx"
+        ]
+      }
+    }
+  ]
+}
