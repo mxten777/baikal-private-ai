@@ -1,0 +1,64 @@
+[
+  {
+    "_comment": "이 테스트셋은 demo_docs/law/ 표준 5건 색인 후 사용한다. relevant_doc_ids 는 색인 직후 관리자 화면 또는 GET /api/documents 에서 확인하여 실제 UUID로 교체한다. 'DOC1_LAW' 등 placeholder는 의도적이다.",
+
+    "query": "정보공개 청구의 처리 기간은 며칠인가요?",
+    "relevant_doc_ids": ["DOC1_PUBLIC_INFO_LAW"],
+    "expected_keywords": ["정보공개", "처리", "기간", "10일"],
+    "query_type": "law_core"
+  },
+  {
+    "query": "정보공개법에서 정한 비공개 정보 사유는 무엇인가요?",
+    "relevant_doc_ids": ["DOC1_PUBLIC_INFO_LAW"],
+    "expected_keywords": ["비공개", "사유", "정보공개"],
+    "query_type": "law_core"
+  },
+  {
+    "query": "행정처분 사전통지의 예외 사유는?",
+    "relevant_doc_ids": ["DOC2_ADMIN_PROCEDURE"],
+    "expected_keywords": ["사전통지", "예외", "행정처분"],
+    "query_type": "law_core"
+  },
+  {
+    "query": "청문은 어떤 경우에 실시하나요?",
+    "relevant_doc_ids": ["DOC2_ADMIN_PROCEDURE"],
+    "expected_keywords": ["청문", "실시", "행정"],
+    "query_type": "law_core"
+  },
+  {
+    "query": "표준 정보공개 조례안에서 정보공개심의회 구성은?",
+    "relevant_doc_ids": ["DOC3_STANDARD_INFO_ORDINANCE"],
+    "expected_keywords": ["정보공개심의회", "위원", "구성"],
+    "query_type": "ordinance"
+  },
+  {
+    "query": "공무원 연가 일수는 재직 기간에 따라 어떻게 다른가요?",
+    "relevant_doc_ids": ["DOC4_STANDARD_DUTY_ORDINANCE"],
+    "expected_keywords": ["연가", "재직", "공무원"],
+    "query_type": "ordinance"
+  },
+  {
+    "query": "공무원 징계 종류는 무엇이 있나요?",
+    "relevant_doc_ids": ["DOC4_STANDARD_DUTY_ORDINANCE", "DOC5_HR_GUIDELINE"],
+    "expected_keywords": ["징계", "파면", "해임", "정직"],
+    "query_type": "hr"
+  },
+  {
+    "query": "정보공개법과 표준 정보공개 조례안에서 처리 기간 규정은 각각 어떻게 다른가요?",
+    "relevant_doc_ids": ["DOC1_PUBLIC_INFO_LAW", "DOC3_STANDARD_INFO_ORDINANCE"],
+    "expected_keywords": ["정보공개", "처리", "기간"],
+    "query_type": "comparison"
+  },
+  {
+    "query": "정보공개법과 행정절차법에서 공통적으로 정한 통지 방법은?",
+    "relevant_doc_ids": ["DOC1_PUBLIC_INFO_LAW", "DOC2_ADMIN_PROCEDURE"],
+    "expected_keywords": ["통지", "송달", "방법"],
+    "query_type": "comparison"
+  },
+  {
+    "query": "행정절차법에서 송달의 정의는?",
+    "relevant_doc_ids": ["DOC2_ADMIN_PROCEDURE"],
+    "expected_keywords": ["송달", "정의", "행정절차"],
+    "query_type": "definition"
+  }
+]

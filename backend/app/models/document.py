@@ -36,6 +36,9 @@ class Document(Base):
     allowed_roles: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)
     # P3-6 Document Lineage
     chunk_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)   # 처리 완료 시 청크 수
+    # Stage 1.2: 인덱싱 진행률
+    total_chunks: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)       # 전체 청크 수 (청킹 직후 결정)
+    processed_chunks: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)   # 저장 완료된 청크 수 (batch마다 증가)
     updated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )  # 마지막 처리/수정 시각

@@ -124,7 +124,7 @@ export default function ChatPage() {
           fullAnswer += event.content;
           setMessages((prev) => prev.map((m) => m.id === streamingMsgId ? { ...m, content: fullAnswer } : m));
         } else if (event.type === 'done') {
-          setMessages((prev) => prev.map((m) => m.id === streamingMsgId ? { ...m, content: fullAnswer || event.content, sources: { documents: sources }, confidence_score: event.confidence_score, id: event.message_id || streamingMsgId } : m));
+          setMessages((prev) => prev.map((m) => m.id === streamingMsgId ? { ...m, content: fullAnswer || event.content, sources: { documents: sources, refusal_reason: event.refusal_reason }, confidence_score: event.confidence_score, id: event.message_id || streamingMsgId } : m));
         } else if (event.type === 'error') {
           toast.error(event.content || 'AI 응답 오류');
           setMessages((prev) => prev.filter((m) => m.id !== streamingMsgId));
@@ -135,7 +135,7 @@ export default function ChatPage() {
       setMessages((prev) => prev.filter((m) => m.id !== streamingMsgId));
       try {
         const res = await chatAPI.ask(sessionId, q, selectedDocIds.length > 0 ? selectedDocIds : null, useHyde);
-        setMessages((prev) => [...prev, { role: 'assistant', content: res.data.answer, sources: { documents: res.data.sources }, confidence_score: res.data.confidence_score, id: res.data.message_id }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: res.data.answer, sources: { documents: res.data.sources, refusal_reason: res.data.refusal_reason }, confidence_score: res.data.confidence_score, id: res.data.message_id }]);
         loadSessions();
       } catch (fallbackErr) {
         toast.error(fallbackErr.response?.data?.detail || fallbackErr.message || 'AI 답변 생성 실패');
@@ -296,6 +296,12 @@ export default function ChatPage() {
             </div>
           ) : (
             <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 pt-5">
+              <div className="mb-4 flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/[0.08] border border-amber-500/20">
+                <span className="text-[11px] leading-relaxed text-amber-200/80">
+                  <strong className="text-amber-300">안내</strong> · BAIKAL은 업로드된 문서 검색 보조 도구입니다.
+                  답변은 참고용이며, 법적·계약상 효력 판단의 근거가 아닙니다. 중요한 결정 전 원문을 반드시 확인하세요.
+                </span>
+              </div>
               {messages.map((msg, idx) => (
                 <ChatMessage key={msg.id || idx} message={msg} />
               ))}

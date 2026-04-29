@@ -144,9 +144,8 @@ async def evaluate_query(
     }
 
 
-async def run_evaluation(testset_path: str, k: int):
-    """전체 테스트셋 평가 실행."""
-    # 테스트셋 로드
+async def run_evaluation(testset_path: str, k: int, md_output: str = None):
+    """전체 테스트셋 평가 실행."""    # 테스트셋 로드
     with open(testset_path, "r", encoding="utf-8") as f:
         testset = json.load(f)
 
@@ -249,6 +248,62 @@ async def run_evaluation(testset_path: str, k: int):
         }, f, ensure_ascii=False, indent=2)
     print(f"  결과 저장: {output_path}\n")
 
+    # ── 마크다운 리포트 (선택) ──────────────────────────────────
+    if md_output:
+        from datetime import datetime
+        md_path = Path(md_output)
+        md_path.parent.mkdir(parents=True, exist_ok=True)
+        p_avg = avg('precision_at_k')
+        r_avg_ms = avg('retrieval_ms')
+        rr_avg_ms = avg('reranking_ms')
+        lines = []
+        lines.append(f"# BAIKAL RAG 평가 리포트")
+        lines.append("")
+        lines.append(f"- 측정일: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        lines.append(f"- 테스트셋: `{testset_path}` (n={n})")
+        lines.append(f"- K = {k}")
+        lines.append("")
+        lines.append("## 핵심 지표")
+        lines.append("")
+        lines.append("| 지표 | 측정값 | 목표 | 달성 |")
+        lines.append("|------|-------:|-----:|:----:|")
+        lines.append(f"| Precision@{k} | {p_avg:.4f} | ≥ 0.80 | {'✅' if p_avg >= 0.80 else '❌'} |")
+        lines.append(f"| Recall@{k}    | {avg('recall_at_k'):.4f} | – | – |")
+        lines.append(f"| MRR           | {avg('mrr'):.4f} | – | – |")
+        lines.append(f"| nDCG@{k}      | {avg('ndcg_at_k'):.4f} | – | – |")
+        lines.append(f"| Reranking Lift| {avg('reranking_lift'):+.4f} | > 0 | {'✅' if avg('reranking_lift') > 0 else '❌'} |")
+        lines.append(f"| Avg Retrieval | {r_avg_ms:.0f} ms | ≤ 1500 ms | {'✅' if r_avg_ms <= 1500 else '❌'} |")
+        lines.append(f"| Avg Reranking | {rr_avg_ms:.0f} ms | ≤ 500 ms | {'✅' if rr_avg_ms <= 500 else '❌'} |")
+        lines.append("")
+        # 쿼리 유형별
+        query_types = sorted(set(r["query_type"] for r in results))
+        if len(query_types) > 1:
+            lines.append(f"## 쿼리 유형별 Precision@{k}")
+            lines.append("")
+            lines.append("| 유형 | n | Precision |")
+            lines.append("|------|--:|----------:|")
+            for qt in query_types:
+                tr = [r for r in results if r["query_type"] == qt]
+                lines.append(f"| {qt} | {len(tr)} | {sum(r['precision_at_k'] for r in tr)/len(tr):.4f} |")
+            lines.append("")
+        lines.append("## 개별 쿼리 결과")
+        lines.append("")
+        lines.append(f"| # | 유형 | Query | P@{k} | R@{k} | MRR | nDCG@{k} | Lift |")
+        lines.append("|--:|------|-------|------:|------:|----:|---------:|-----:|")
+        for i, r in enumerate(results, 1):
+            q = r["query"][:60].replace("|", "/")
+            lines.append(
+                f"| {i} | {r['query_type']} | {q} | {r['precision_at_k']:.3f} | "
+                f"{r['recall_at_k']:.3f} | {r['mrr']:.3f} | "
+                f"{r['ndcg_at_k']:.3f} | {r['reranking_lift']:+.3f} |"
+            )
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        lines.append("*이 리포트는 `scripts/eval_rag.py --output md` 으로 자동 생성되었습니다.*")
+        md_path.write_text("\n".join(lines), encoding="utf-8")
+        print(f"  마크다운 리포트: {md_path}\n")
+
 
 def main():
     parser = argparse.ArgumentParser(description="BAIKAL RAG 평가 스크립트")
@@ -256,6 +311,8 @@ def main():
                         help="테스트셋 JSON 파일 경로")
     parser.add_argument("--k", type=int, default=5,
                         help="Precision@K, Recall@K, nDCG@K의 K값 (기본: 5)")
+    parser.add_argument("--output", default=None,
+                        help="마크다운 리포트 출력 경로. 'md'면 docs/TEST_RESULTS.md 사용")
     args = parser.parse_args()
 
     if not os.path.exists(args.testset):
@@ -263,7 +320,11 @@ def main():
         print("   scripts/eval_testset.json 을 먼저 작성하세요.")
         sys.exit(1)
 
-    asyncio.run(run_evaluation(args.testset, args.k))
+    md_output = None
+    if args.output:
+        md_output = "docs/TEST_RESULTS.md" if args.output == "md" else args.output
+
+    asyncio.run(run_evaluation(args.testset, args.k, md_output=md_output))
 
 
 if __name__ == "__main__":

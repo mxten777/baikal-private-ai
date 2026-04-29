@@ -16,6 +16,82 @@
 
 ---
 
+---
+
+# 작업 로그
+
+## 2026-04-29 — HWPML 지원 + 문서 통합 + 성능 로드맵
+
+### 완료 작업
+
+#### 1. 시연 환경 클린 리셋
+- 문서 7건 → 4건 정리 (실패 1건 + 중복 2건 삭제)
+- `query_logs`, `chat_messages`, `chat_sessions` TRUNCATE → 0
+- `scripts/demo_warmup.ps1`을 쿠키 기반 인증으로 수정 (기존 Bearer 토큰 응답 본문 방식이 빈 응답으로 실패)
+- 워밍업 검증: cold-start 53.4초
+
+#### 2. HWPML(XML) 포맷 지원 추가 ⭐
+- **증상**: law.go.kr에서 다운로드한 `.hwp`가 "유효하지 않은 HWP 파일입니다" 오류로 처리 실패
+- **원인**: 헤더가 `<?xml version="1.0"...HWPML Version="2.1">` — OLE 바이너리가 아닌 **HWPML 2.1 (XML) 포맷**
+- **수정 파일**: `backend/app/rag/loader.py`
+  - 추가 함수: `_is_hwpml()`, `_extract_hwpml_text()`, `_extract_hwpml_text_regex()`
+  - `extract_hwp()` / `_extract_hwp_pages()` 진입부에 HWPML 분기
+  - `<CHAR>` / `<TEXT>` 태그에서 텍스트 추출, 정규식 폴백 포함
+- **검증**: `공공기관의 정보공개에 관한 법률.hwp` → 15,245자 추출 → 41 chunks 임베딩 → status=completed
+
+#### 3. 고객 배포용 성능 로드맵 신규 작성
+- `docs/PERFORMANCE_ROADMAP.md` (189줄) 신설
+- 0/1/2/3단계 (CPU → GPU 1장 → A100 → H100×4) 정량 비교
+- 핵심 메시지: "GPU 1장(약 300만원) 추가 시 ChatGPT 수준 3~5초 응답"
+
+#### 4. 제안서·사업계획서 통일
+- `docs/PROPOSAL.md`: §4.4 "권장 하드웨어 사양 — 단계별 도입" 신설, FAQ Q6 강화
+- `docs/BUSINESS_PLAN.md`: §11 "단계별 성능 향상 로드맵" 신설, §12~17 자동 재번호
+
+#### 5. 문서 대정리 (B안: 21개 → 13개)
+- `docs/MARKETING_STRATEGY.md` 신규 (마케팅 4개 통합)
+- `docs/DEVELOPMENT_NOTES.md` 신규 (개발 내부 3개 통합 — 본 문서)
+- `docs/BUSINESS_PLAN.md` 부록 A: ISP 2개 흡수
+- `docs/DEMO_RUNBOOK.md` 부록 A: 시연 가이드 2개 흡수
+- `docs/README.md` 인덱스 신설
+- 통합 스크립트 `scripts/consolidate_docs.ps1` 보존
+- 원본 11개 삭제 (git 이력으로 복구 가능)
+
+### 향후 개선 작업
+
+#### 🔴 P0 — 즉시 (시연 직전)
+- [ ] 나머지 법령 4건 업로드 (행정절차법, 표준 정보공개 조례, 표준 복무 조례, 인사 예규)
+- [ ] 새 문서 색인 후 `.\scripts\demo_warmup.ps1` 재실행
+- [ ] 거절 시나리오("오늘 점심 메뉴") 발동 검증
+- [ ] git 커밋
+
+#### 🟠 P1 — 1~2주 내
+- [ ] HWPML 페이지 분리 정밀화 (`<P>`/`<SECTION>` 단위 청킹)
+- [ ] `scripts/eval_testset_law.json` placeholder를 실제 doc id로 채우고 `eval_rag.py` 실행 → `TEST_RESULTS.md` 갱신
+- [ ] 5분 시연 화면 녹화 (부재 미팅 배포용)
+- [ ] 출처 클릭 → 원문 PDF/HWP 해당 위치 점프 기능
+- [ ] `roi_calculator.html`에 법령·금융·제조 프리셋 추가
+
+#### 🟡 P2 — 1개월 내 (PERFORMANCE_ROADMAP 연동)
+- [ ] 모델 양자화 (INT4/INT8) — CPU 응답 30~40% 단축
+- [ ] 검색 캐시 도입 — 동일 질의 즉시 응답
+- [ ] SSE 첫 토큰 5초 내 보장
+- [ ] HWP/HWPML 표(별표·시행규칙) 추출 정확도 향상
+
+#### 🟢 P3 — 3~6개월 (제품화·영업)
+- [ ] GPU 워크스테이션 PoC 키트 (RTX 4090 1장에서 3~5초 응답 측정)
+- [ ] Reranker 도입 — Top-5 Recall 87% → 92%
+- [ ] 지자체 PoC 레퍼런스 1건 확보 (MARKETING_STRATEGY Part 3 결론)
+- [ ] 나라장터 등록 / GS인증 신청 (공공 조달 진입)
+- [ ] 비교 블로그 ("BAIKAL vs Dify, HWP 처리") 인바운드 채널 구축
+
+#### 🔵 P4 — 장기 (2027)
+- [ ] 도메인 fine-tuning (법령 특화 모델)
+- [ ] 음성 입출력 (회의 녹취 자동 요약)
+- [ ] 다국어 (영·중·일)
+- [ ] HA 이중화 구성
+
+---
 # Part 1. 媛쒖꽑 濡쒕뱶留?
 ## BAIKAL 프로젝트 실질 개선 방향
 

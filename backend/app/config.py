@@ -41,6 +41,18 @@ class Settings(BaseSettings):
     CROSS_ENCODER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     MAX_HISTORY_TURNS: int = 3
 
+    # Confidence Gate (할루시네이션 방지)
+    # MIN_CONFIDENCE_THRESHOLD: 가중 신뢰도 점수 하한 (0.0~1.0)
+    # MIN_TOP1_SCORE: 최상위 청크 단일 점수 하한 (0.0~1.0)
+    # 두 값 중 하나라도 미달이면 LLM 호출 전 거절 응답 반환
+    MIN_CONFIDENCE_THRESHOLD: float = 0.40
+    MIN_TOP1_SCORE: float = 0.45
+    REQUIRE_CITATION: bool = True
+    REFUSAL_MESSAGE: str = (
+        "관련도가 낮아 답변을 생성하지 않습니다. "
+        "질문을 더 구체적으로 작성하시거나, 관련 문서가 시스템에 색인되어 있는지 확인해 주세요."
+    )
+
     # Embedding
     EMBEDDING_BATCH_SIZE: int = 10
 

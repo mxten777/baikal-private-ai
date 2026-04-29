@@ -105,40 +105,60 @@ async def call_ollama_chat_stream(messages: list) -> AsyncGenerator[str, None]:
         raise OllamaConnectionError("Ollama 서버 응답 시간 초과.")
 
 
-async def call_ollama_embedding(texts: List[str]) -> List[List[float]]:
-    """Ollama Embedding API 호출 (배치 처리 + 재시도)"""
-    embeddings = []
+async def call_ollama_embedding(
+    texts: List[str],
+    progress_cb=None,
+) -> List[List[float]]:
+    """Ollama Embedding API 호출.
+
+    Stage 1.2b: 진짜 batch 호출로 변경 — Ollama `/api/embed`는 input에 배열을 받으면
+    한 번에 처리한다. 기존 코드는 batch_size 안에서 1개씩 직렬 호출하여 N번의
+    HTTP 라운드트립이 발생했다. (245단락 → 245호출 → 12분)
+
+    progress_cb(done: int, total: int): 매 batch 완료 시 호출되는 옵션 콜백.
+    """
+    if not texts:
+        return []
+    embeddings: List[List[float]] = []
     batch_size = settings.EMBEDDING_BATCH_SIZE
 
     for i in range(0, len(texts), batch_size):
         batch = texts[i:i + batch_size]
-        for text in batch:
-            retry_count = 0
-            max_retries = 3
-
-            while retry_count < max_retries:
-                try:
-                    response = await _ollama_request(
-                        "post",
-                        "/api/embed",
-                        json={
-                            "model": settings.EMBEDDING_MODEL,
-                            "input": text,
-                        },
-                        timeout=120.0,
+        retry_count = 0
+        max_retries = 3
+        while retry_count < max_retries:
+            try:
+                response = await _ollama_request(
+                    "post",
+                    "/api/embed",
+                    json={
+                        "model": settings.EMBEDDING_MODEL,
+                        "input": batch,  # list 그대로 — Ollama 0.1.30+ 지원
+                    },
+                    timeout=300.0,
+                )
+                data = response.json()
+                batch_embeddings = data.get("embeddings") or []
+                if len(batch_embeddings) != len(batch):
+                    raise ValueError(
+                        f"임베딩 응답 개수 불일치: 요청={len(batch)} 응답={len(batch_embeddings)}"
                     )
-                    data = response.json()
-                    embeddings.append(data["embeddings"][0])
-                    break
-                except (OllamaConnectionError, OllamaModelError):
+                embeddings.extend(batch_embeddings)
+                if progress_cb:
+                    try:
+                        await progress_cb(len(embeddings), len(texts))
+                    except Exception as cb_err:
+                        logger.warning(f"임베딩 progress_cb 실패: {cb_err}")
+                break
+            except (OllamaConnectionError, OllamaModelError):
+                raise
+            except Exception as e:
+                retry_count += 1
+                if retry_count >= max_retries:
+                    logger.error(f"임베딩 생성 실패 (최대 재시도 초과): {e}")
                     raise
-                except Exception as e:
-                    retry_count += 1
-                    if retry_count >= max_retries:
-                        logger.error(f"임베딩 생성 실패 (최대 재시도 초과): {e}")
-                        raise
-                    logger.warning(f"임베딩 재시도 {retry_count}/{max_retries}: {e}")
-                    await asyncio.sleep(1)
+                logger.warning(f"임베딩 재시도 {retry_count}/{max_retries}: {e}")
+                await asyncio.sleep(1)
 
     return embeddings
 

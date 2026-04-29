@@ -16,6 +16,9 @@ class DocumentResponse(BaseModel):
     error_message: Optional[str] = None
     is_public: bool = True
     allowed_roles: Optional[List[str]] = None
+    total_chunks: Optional[int] = None
+    processed_chunks: Optional[int] = None
+    chunk_count: Optional[int] = None
     created_at: datetime
 
     class Config:
@@ -26,6 +29,8 @@ class DocumentStatusResponse(BaseModel):
     id: str
     status: str
     error_message: Optional[str] = None
+    total_chunks: Optional[int] = None
+    processed_chunks: Optional[int] = None
 
 
 class ChunkPreview(BaseModel):

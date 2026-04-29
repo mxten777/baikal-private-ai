@@ -110,6 +110,52 @@ async def remove_document(
         raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다")
 
 
+@router.post("/{document_id}/retry", response_model=DocumentResponse)
+async def retry_document_processing(
+    document_id: str,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """실패/중단된 문서 재처리 (Stage 1.3)
+
+    - failed 또는 처리 중 상태(processing) 둘 다 허용
+    - completed 상태는 거부 (의도치 않은 재처리 방지 — 삭제 후 재업로드 사용)
+    - 원본 파일이 디스크에 존재해야 함
+    """
+    result = await db.execute(select(Document).where(Document.id == document_id))
+    doc = result.scalar_one_or_none()
+    if doc is None:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다")
+
+    if current_user.role != "admin" and doc.uploaded_by != current_user.id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다")
+
+    if doc.status == "completed":
+        raise HTTPException(
+            status_code=400,
+            detail="이미 처리 완료된 문서입니다. 재처리하려면 삭제 후 다시 업로드하세요.",
+        )
+
+    import os as _os
+    if not _os.path.exists(doc.filepath):
+        raise HTTPException(
+            status_code=410,
+            detail="원본 파일이 서버에 존재하지 않습니다. 다시 업로드해주세요.",
+        )
+
+    # 상태를 uploading으로 되돌려 process_document_async가 정상 진입하도록 함
+    doc.status = "uploading"
+    doc.error_message = None
+    doc.total_chunks = None
+    doc.processed_chunks = None
+    await db.commit()
+    await db.refresh(doc)
+
+    background_tasks.add_task(process_document_async, doc.id)
+    return doc
+
+
 @router.patch("/{document_id}/permissions")
 async def update_document_permissions(
     document_id: str,

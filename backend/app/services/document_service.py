@@ -158,9 +158,22 @@ async def process_document_async(document_id: str):
 
             # 상태 → processing
             doc.status = "processing"
+            doc.error_message = None
             await db.commit()
 
             logger.info(f"문서 처리 시작: {doc.filename}")
+
+            # Stage 1.3: 재시도/재처리 시 기존 청크/진행률 정리 (멱등성 보장)
+            if doc.chunk_count and doc.chunk_count > 0:
+                from sqlalchemy import delete as sql_delete
+                await db.execute(
+                    sql_delete(DocumentChunk).where(DocumentChunk.document_id == document_id)
+                )
+                doc.chunk_count = 0
+                doc.total_chunks = None
+                doc.processed_chunks = None
+                await db.commit()
+                logger.info(f"기존 청크 정리 완료: {doc.filename}")
 
             # 1. 텍스트 추출 (P3-8: PDF/DOCX는 비전 모델 우선 시도)
             # 동기 함수들은 run_in_executor로 실행하여 이벤트 루프 블로킹 방지
@@ -201,12 +214,23 @@ async def process_document_async(document_id: str):
                 doc_pages = []
 
             # 2. 시맨틱 청킹 (표 영역은 기존 방식 유지)
+            # Stage 1.2b: 청킹 단계 임베딩에도 진행률 보고
+            async def _chunking_progress(done: int, total: int):
+                # 청킹 단계는 아직 total_chunks 미정이므로 음수 total로 신호
+                doc.total_chunks = -total       # 음수: "단락 임베딩 중"
+                doc.processed_chunks = -done
+                try:
+                    await db.commit()
+                except Exception:
+                    await db.rollback()
+
             chunks = await _semantic_chunk_document(
                 text, settings.CHUNK_SIZE, settings.CHUNK_OVERLAP,
                 generate_embeddings,
                 split_into_paragraphs, semantic_chunk_with_embeddings, chunk_text,
                 split_table_aware,
                 doc.filename,
+                progress_cb=_chunking_progress,
             )
             if not chunks:
                 doc.status = "failed"
@@ -219,31 +243,48 @@ async def process_document_async(document_id: str):
             # 3. 표 청크 자연어 변환 (임베딩용) — 원본은 content에 보존
             nl_texts = [table_chunk_to_nl(c) for c in chunks]
 
-            # 4. 임베딩 생성 (자연어 변환본 사용)
-            try:
-                embeddings = await generate_embeddings(nl_texts)
-            except Exception as e:
-                doc.status = "failed"
-                doc.error_message = f"임베딩 생성 실패: {str(e)[:200]}"
-                await db.commit()
-                logger.error(f"임베딩 실패: {doc.filename} - {e}")
-                return
+            # Stage 1.2: total_chunks 즉시 기록 (UI에서 진행률 분모로 사용)
+            doc.total_chunks = len(chunks)
+            doc.processed_chunks = 0
+            await db.commit()
 
-            # 5. DB 저장 (null 바이트 제거 - PostgreSQL UTF-8 거부 방지)
-            for i, (chunk_content, nl_text, embedding) in enumerate(zip(chunks, nl_texts, embeddings)):
-                clean_content = chunk_content.replace('\x00', '').replace('\uf000', '')
-                clean_nl = nl_text.replace('\x00', '').replace('\uf000', '')
-                nl_stored = clean_nl if clean_nl != clean_content else None
-                chunk = DocumentChunk(
-                    document_id=document_id,
-                    chunk_index=i,
-                    content=clean_content,
-                    nl_content=nl_stored,
-                    embedding=embedding,
-                    page_number=_find_chunk_page(clean_content, doc_pages),
-                    source_type=_detect_source_type(clean_content),
-                )
-                db.add(chunk)
+            # 4. 임베딩 + 저장을 batch로 처리 — 백엔드 재시작 시에도 일부 보존, UI에서 진행률 추적 가능
+            BATCH_SIZE = 50
+            saved = 0
+            for batch_start in range(0, len(chunks), BATCH_SIZE):
+                batch_end = min(batch_start + BATCH_SIZE, len(chunks))
+                batch_nl = nl_texts[batch_start:batch_end]
+                try:
+                    batch_embeddings = await generate_embeddings(batch_nl)
+                except Exception as e:
+                    doc.status = "failed"
+                    doc.error_message = f"임베딩 생성 실패 ({batch_start}/{len(chunks)}): {str(e)[:200]}"
+                    await db.commit()
+                    logger.error(f"임베딩 실패: {doc.filename} batch={batch_start} - {e}")
+                    return
+
+                for offset, embedding in enumerate(batch_embeddings):
+                    i = batch_start + offset
+                    chunk_content = chunks[i]
+                    nl_text = nl_texts[i]
+                    clean_content = chunk_content.replace('\x00', '').replace('\uf000', '')
+                    clean_nl = nl_text.replace('\x00', '').replace('\uf000', '')
+                    nl_stored = clean_nl if clean_nl != clean_content else None
+                    chunk = DocumentChunk(
+                        document_id=document_id,
+                        chunk_index=i,
+                        content=clean_content,
+                        nl_content=nl_stored,
+                        embedding=embedding,
+                        page_number=_find_chunk_page(clean_content, doc_pages),
+                        source_type=_detect_source_type(clean_content),
+                    )
+                    db.add(chunk)
+
+                saved = batch_end
+                doc.processed_chunks = saved
+                await db.commit()
+                logger.info(f"  batch 저장: {doc.filename} {saved}/{len(chunks)}")
 
             doc.status = "completed"
             doc.chunk_count = len(chunks)     # P3-6 Lineage: 청크 수 기록
@@ -296,6 +337,7 @@ async def _semantic_chunk_document(
     fallback_chunk_fn,
     split_table_aware_fn,
     filename: str = "",
+    progress_cb=None,
 ) -> List[str]:
     """시맨틱 청킹 메인 로직.
     - 표 영역: 기존 헤더반복 방식 유지
@@ -325,7 +367,7 @@ async def _semantic_chunk_document(
             continue
 
         try:
-            para_embeddings = await generate_embeddings_fn(paragraphs)
+            para_embeddings = await generate_embeddings_fn(paragraphs, progress_cb=progress_cb)
             semantic_chunks = semantic_chunk_fn(
                 paragraphs,
                 para_embeddings,

@@ -62,6 +62,8 @@ export default function ChatMessage({ message }) {
 
   const confidenceScore = message.confidence_score;
   const isLowConfidence = confidenceScore != null && confidenceScore > 0 && confidenceScore < 0.4;
+  const refusalReason = message.sources?.refusal_reason;
+  const isRefusal = !!refusalReason;
 
   const handleSourceClick = async (src) => {
     setPreviewSource(src);
@@ -98,7 +100,15 @@ export default function ChatMessage({ message }) {
           <span className="text-white font-black text-[7px]">B</span>
         </div>
         <span className="text-[11px] font-semibold text-gray-500">BAIKAL AI</span>
-        {confidenceScore != null && confidenceScore > 0 && (
+        {isRefusal && (
+          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-red-500/15 border border-red-500/40">
+            <HiOutlineExclamationTriangle className="w-2.5 h-2.5 text-red-400" />
+            <span className="text-[9px] font-bold text-red-400">
+              답변 거절 · {refusalReason}
+            </span>
+          </span>
+        )}
+        {!isRefusal && confidenceScore != null && confidenceScore > 0 && (
           isLowConfidence ? (
             <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/40">
               <HiOutlineExclamationTriangle className="w-2.5 h-2.5 text-yellow-400" />

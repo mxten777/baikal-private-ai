@@ -43,6 +43,7 @@ class AskResponse(BaseModel):
     sources: List[dict]
     message_id: str
     confidence_score: Optional[float] = None
+    refusal_reason: Optional[str] = None  # Confidence Gate 거절 사유 (low_top1_score / low_confidence / no_chunks)
 
 
 class FeedbackRequest(BaseModel):
