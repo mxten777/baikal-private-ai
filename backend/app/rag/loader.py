@@ -126,8 +126,71 @@ def _extract_xlsx_pages(filepath: str) -> list:
     return pages if pages else [(None, extract_xlsx(filepath))]
 
 
+def _is_hwpml(filepath: str) -> bool:
+    """파일이 HWPML(XML 기반 HWP, law.go.kr 등) 포맷인지 검사"""
+    try:
+        with open(filepath, 'rb') as f:
+            head = f.read(512)
+        return b'<?xml' in head[:10] and (b'HWPML' in head or b'<HWPML' in head)
+    except Exception:
+        return False
+
+
+def _extract_hwpml_text(filepath: str) -> str:
+    """HWPML(XML) 파일에서 텍스트 추출.
+
+    law.go.kr 등 정부 사이트가 .hwp 확장자로 내려보내는 HWPML 2.x 포맷을 지원.
+    <CHAR>, <TEXT>, <P> 태그 내 텍스트를 추출한다.
+    """
+    import xml.etree.ElementTree as ET
+
+    try:
+        with open(filepath, 'rb') as f:
+            raw = f.read()
+        # 일부 HWPML은 중괄호 placeholder가 있어 XML 파싱이 깨질 수 있음 → 제거
+        text_data = raw.decode('utf-8', errors='ignore')
+        # {국가법령이미지로고목록} 같은 placeholder 라인 제거
+        import re
+        text_data = re.sub(r'^\s*\{[^}]*\}\s*$', '', text_data, flags=re.MULTILINE)
+        root = ET.fromstring(text_data)
+    except Exception as e:
+        logger.warning(f"HWPML XML 파싱 실패, 정규식 폴백: {e}")
+        return _extract_hwpml_text_regex(filepath)
+
+    text_parts = []
+    # HWPML에서 텍스트가 들어가는 주요 태그: CHAR, TEXT (그 안에 또 CHAR), 그리고 P(paragraph)
+    for elem in root.iter():
+        tag = elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
+        if tag in ('CHAR', 'TEXT'):
+            if elem.text and elem.text.strip():
+                text_parts.append(elem.text)
+    result = ''.join(text_parts)
+    # 연속 공백/개행 정리
+    import re
+    result = re.sub(r'[\t ]+', ' ', result)
+    result = re.sub(r'\n{3,}', '\n\n', result)
+    return result.strip()
+
+
+def _extract_hwpml_text_regex(filepath: str) -> str:
+    """HWPML XML 파싱 실패 시 정규식 폴백"""
+    import re
+    with open(filepath, 'rb') as f:
+        data = f.read().decode('utf-8', errors='ignore')
+    # <CHAR>...</CHAR> 또는 <TEXT>...</TEXT> 안의 텍스트 수집
+    chunks = re.findall(r'<CHAR[^>]*>([^<]+)</CHAR>', data)
+    if not chunks:
+        chunks = re.findall(r'<TEXT[^>]*>([^<]+)</TEXT>', data)
+    return ''.join(chunks).strip()
+
+
 def _extract_hwp_pages(filepath: str) -> list:
     """HWP에서 섹션별 (section_num, text) 반환"""
+    # HWPML(XML) 포맷 우선 검사
+    if _is_hwpml(filepath):
+        text = _extract_hwpml_text(filepath)
+        return [(None, text)] if text else []
+
     try:
         import olefile
         import zlib
@@ -374,7 +437,14 @@ def extract_xlsx(filepath: str) -> str:
 
 
 def extract_hwp(filepath: str) -> str:
-    """HWP 파일에서 텍스트 추출 (OLE 바이너리 포맷)"""
+    """HWP 파일에서 텍스트 추출 (OLE 바이너리 포맷 + HWPML XML 포맷)"""
+    # HWPML(XML 기반, law.go.kr 등) 우선 처리
+    if _is_hwpml(filepath):
+        text = _extract_hwpml_text(filepath)
+        if not text:
+            raise ValueError("HWPML 파일에서 텍스트를 추출하지 못했습니다")
+        return text
+
     try:
         import olefile
         import zlib
@@ -383,7 +453,7 @@ def extract_hwp(filepath: str) -> str:
         raise ImportError("olefile이 설치되지 않았습니다: pip install olefile")
 
     if not olefile.isOleFile(filepath):
-        raise ValueError("유효하지 않은 HWP 파일입니다")
+        raise ValueError("유효하지 않은 HWP 파일입니다 (OLE/HWPML 모두 아님)")
 
     ole = olefile.OleFileIO(filepath)
     text_parts = []
