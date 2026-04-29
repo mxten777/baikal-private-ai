@@ -85,6 +85,7 @@ export const documentsAPI = {
     });
   },
   status: (id) => client.get(`/documents/${id}/status`),
+  retry: (id) => client.post(`/documents/${id}/retry`),
   download: (id) =>
     client.get(`/documents/${id}/download`, { responseType: 'blob' }),
   delete: (id) => client.delete(`/documents/${id}`),

@@ -2,6 +2,7 @@
  * PasswordChangeModal - 비밀번호 변경 모달
  */
 import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { HiOutlineKey, HiOutlineXMark, HiOutlineEye, HiOutlineEyeSlash } from 'react-icons/hi2';
 import { authAPI } from '../api/client';
 import toast from 'react-hot-toast';
@@ -63,8 +64,8 @@ export default function PasswordChangeModal({ isOpen, onClose }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+  return ReactDOM.createPortal(
+    <div style={{ zIndex: 9999 }} className="fixed inset-0 flex items-center justify-center p-4">
       {/* 백드롭 */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -207,6 +208,7 @@ export default function PasswordChangeModal({ isOpen, onClose }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

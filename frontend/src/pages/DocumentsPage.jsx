@@ -40,6 +40,30 @@ function isStuck(doc) {
   return Date.now() - new Date(doc.created_at).getTime() > STUCK_THRESHOLD_MS;
 }
 
+/**
+ * 인덱싱 진행 정보 계산
+ * 백엔드 컨벤션:
+ *   total_chunks 음수 + processed_chunks 음수 → 단락 임베딩(청킹) 단계
+ *   total_chunks 양수 + processed_chunks 양수 → 청크 저장 단계
+ *   둘 다 NULL → 텍스트 추출 단계
+ */
+function getProgressInfo(doc) {
+  if (doc.status !== 'processing' && doc.status !== 'uploading') return null;
+  const t = doc.total_chunks;
+  const p = doc.processed_chunks ?? 0;
+  if (t == null) {
+    return { phase: '텍스트 추출 중', percent: null, label: '' };
+  }
+  if (t < 0) {
+    const total = -t;
+    const done = Math.max(0, -p);
+    const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+    return { phase: '단락 임베딩', percent: pct, label: `${done}/${total}` };
+  }
+  const pct = t > 0 ? Math.min(100, Math.round((p / t) * 100)) : 0;
+  return { phase: '청크 저장', percent: pct, label: `${p}/${t}` };
+}
+
 function formatBytes(bytes) {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -84,6 +108,16 @@ export default function DocumentsPage() {
       toast.success('문서가 삭제되었습니다');
       loadDocuments();
     } catch { toast.error('삭제 실패'); }
+  };
+
+  const handleRetry = async (doc) => {
+    try {
+      await documentsAPI.retry(doc.id);
+      toast.success(`"${doc.filename}" 재처리를 시작합니다`);
+      loadDocuments();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || '재처리 실패');
+    }
   };
 
   const handleDownload = async (doc) => {
@@ -195,6 +229,7 @@ export default function DocumentsPage() {
                           const stuck = isStuck(doc);
                           const displayStatus = stuck ? STATUS_MAP.processing_stuck : (STATUS_MAP[doc.status] || STATUS_MAP.uploading);
                           const isActive = doc.status === 'processing' || doc.status === 'uploading';
+                          const prog = isActive && !stuck ? getProgressInfo(doc) : null;
                           return (
                             <div>
                               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold ${displayStatus.bg}`}>
@@ -203,13 +238,37 @@ export default function DocumentsPage() {
                                   : <span className={`w-1.5 h-1.5 rounded-full ${displayStatus.dot} ${isActive && !stuck ? 'animate-pulse' : ''}`} />}
                                 {displayStatus.label}
                               </span>
-                              {isActive && (
-                                <p className={`text-[10px] mt-1 ${stuck ? 'text-orange-400 font-semibold' : 'text-gray-500'}`}>
-                                  {stuck ? '⚠ 응답 없음 — 삭제 후 재업로드 하세요' : getElapsedLabel(doc.created_at)}
-                                </p>
+                              {isActive && !stuck && (
+                                <div className="mt-1.5 max-w-[220px]">
+                                  {prog && (
+                                    <>
+                                      <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1">
+                                        <span className="font-medium">
+                                          {prog.phase}
+                                          {prog.label && <span className="text-gray-400 ml-1">{prog.label}</span>}
+                                        </span>
+                                        {prog.percent != null && (
+                                          <span className="font-semibold text-baikal-400 tabular-nums">{prog.percent}%</span>
+                                        )}
+                                      </div>
+                                      <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                                        <div
+                                          className="h-full rounded-full bg-gradient-to-r from-baikal-500 to-blue-500 transition-all duration-500"
+                                          style={{ width: prog.percent != null ? `${prog.percent}%` : '15%' }}
+                                        />
+                                      </div>
+                                    </>
+                                  )}
+                                  <p className="text-[10px] text-gray-500 mt-1">{getElapsedLabel(doc.created_at)}</p>
+                                </div>
+                              )}
+                              {stuck && (
+                                <p className="text-[10px] mt-1 text-orange-400 font-semibold">⚠ 응답 없음 — 재시도 또는 삭제하세요</p>
                               )}
                               {doc.status === 'failed' && doc.error_message && (
-                                <p className="text-[10px] text-red-400 mt-1 max-w-[200px] truncate" title={doc.error_message}>{doc.error_message}</p>
+                                <p className="text-[10px] text-red-400 mt-1 max-w-[220px]" title={doc.error_message}>
+                                  {doc.error_message}
+                                </p>
                               )}
                             </div>
                           );
@@ -221,6 +280,11 @@ export default function DocumentsPage() {
                           {doc.status === 'completed' && (
                             <button onClick={() => handleDownload(doc)} className="p-2 text-gray-600 hover:text-baikal-400 hover:bg-white/[0.04] rounded-lg transition-all" title="다운로드">
                               <HiOutlineArrowDownTray className="w-4 h-4" />
+                            </button>
+                          )}
+                          {(doc.status === 'failed' || isStuck(doc)) && (
+                            <button onClick={() => handleRetry(doc)} className="p-2 text-gray-600 hover:text-baikal-400 hover:bg-baikal-500/[0.08] rounded-lg transition-all" title="재처리">
+                              <HiOutlineArrowPath className="w-4 h-4" />
                             </button>
                           )}
                           {(doc.status === 'failed' || isStuck(doc)) && (

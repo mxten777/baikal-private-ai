@@ -2,6 +2,7 @@
  * Admin - AdminDocumentsPage - 프리미엄 관리자 문서 관리
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { documentsAPI } from '../../api/client';
 import toast from 'react-hot-toast';
 import {
@@ -37,6 +38,21 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+function getProgressInfo(doc) {
+  if (doc.status !== 'processing' && doc.status !== 'uploading') return null;
+  const t = doc.total_chunks;
+  const p = doc.processed_chunks ?? 0;
+  if (t == null) return { phase: '텍스트 추출 중', percent: null, label: '' };
+  if (t < 0) {
+    const total = -t;
+    const done = Math.max(0, -p);
+    const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+    return { phase: '단락 임베딩', percent: pct, label: `${done}/${total}` };
+  }
+  const pct = t > 0 ? Math.min(100, Math.round((p / t) * 100)) : 0;
+  return { phase: '청크 저장', percent: pct, label: `${p}/${t}` };
+}
+
 function PermissionModal({ doc, onClose, onSaved }) {
   const [isPublic, setIsPublic] = useState(doc.is_public ?? true);
   const [allowedRoles, setAllowedRoles] = useState(doc.allowed_roles ?? ['admin', 'manager', 'user']);
@@ -65,8 +81,8 @@ function PermissionModal({ doc, onClose, onSaved }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+  return ReactDOM.createPortal(
+    <div style={{ zIndex: 9999 }} className="fixed inset-0 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-[#1a1a2e] border border-white/[0.08] rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
@@ -133,7 +149,8 @@ function PermissionModal({ doc, onClose, onSaved }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -150,10 +167,28 @@ export default function AdminDocumentsPage() {
 
   useEffect(() => { loadDocuments(); }, [loadDocuments]);
 
+  // 처리 중 문서가 있으면 3초마다 자동 폴링
+  useEffect(() => {
+    const active = documents.filter((d) => d.status === 'uploading' || d.status === 'processing');
+    if (active.length === 0) return;
+    const t = setInterval(loadDocuments, 3000);
+    return () => clearInterval(t);
+  }, [documents, loadDocuments]);
+
   const handleDelete = async (doc) => {
     if (!window.confirm(`"${doc.filename}" 문서를 삭제하시겠습니까?`)) return;
     try { await documentsAPI.delete(doc.id); toast.success('문서 삭제 완료'); loadDocuments(); }
     catch (err) { toast.error(err.response?.data?.detail || '삭제 실패'); }
+  };
+
+  const handleRetry = async (doc) => {
+    try {
+      await documentsAPI.retry(doc.id);
+      toast.success(`"${doc.filename}" 재처리를 시작합니다`);
+      loadDocuments();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || '재처리 실패');
+    }
   };
 
   const handleDownload = async (doc) => {
@@ -265,7 +300,30 @@ export default function AdminDocumentsPage() {
                           <span className={`w-1.5 h-1.5 rounded-full ${status.dot} ${doc.status === 'processing' ? 'animate-pulse' : ''}`} />
                           {status.label}
                         </span>
-                        {doc.error_message && <p className="text-[10px] text-red-400 mt-1 max-w-xs truncate">{doc.error_message}</p>}
+                        {(() => {
+                          const prog = getProgressInfo(doc);
+                          if (!prog) return null;
+                          return (
+                            <div className="mt-1.5 max-w-[220px]">
+                              <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1">
+                                <span className="font-medium">
+                                  {prog.phase}
+                                  {prog.label && <span className="text-gray-400 ml-1">{prog.label}</span>}
+                                </span>
+                                {prog.percent != null && (
+                                  <span className="font-semibold text-baikal-400 tabular-nums">{prog.percent}%</span>
+                                )}
+                              </div>
+                              <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-baikal-500 to-blue-500 transition-all duration-500"
+                                  style={{ width: prog.percent != null ? `${prog.percent}%` : '15%' }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        {doc.error_message && <p className="text-[10px] text-red-400 mt-1 max-w-xs truncate" title={doc.error_message}>{doc.error_message}</p>}
                       </td>
                       <td className="px-4 sm:px-6 py-4 hidden md:table-cell">
                         {isPublic ? (
@@ -291,6 +349,11 @@ export default function AdminDocumentsPage() {
                           <button onClick={() => handleDownload(doc)} className="p-2 text-gray-600 hover:text-baikal-400 hover:bg-white/[0.04] rounded-lg transition-all" title="다운로드">
                             <HiOutlineArrowDownTray className="w-4 h-4" />
                           </button>
+                          {doc.status === 'failed' && (
+                            <button onClick={() => handleRetry(doc)} className="p-2 text-gray-600 hover:text-baikal-400 hover:bg-baikal-500/10 rounded-lg transition-all" title="재처리">
+                              <HiOutlineArrowPath className="w-4 h-4" />
+                            </button>
+                          )}
                           <button onClick={() => handleDelete(doc)} className="p-2 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all" title="삭제">
                             <HiOutlineTrash className="w-4 h-4" />
                           </button>
